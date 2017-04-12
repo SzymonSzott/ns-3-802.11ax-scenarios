@@ -24,7 +24,8 @@
 #include "ns3/mobility-module.h"
 #include "ns3/internet-module.h"
 
-// This is an implementation of the TGax (HEW) outdoor scenario. 
+
+// This is an implementation of the TGax (HEW) outdoor scenario.
 
 using namespace ns3;
 
@@ -37,18 +38,18 @@ int main (int argc, char *argv[])
 	double simulationTime = 10; //seconds
 
 	/* Command line parameters */
-	
+
 	CommandLine cmd;
 	cmd.AddValue ("simulationTime", "Simulation time [s]", simulationTime);
-	cmd.Parse (argc,argv);	
+	cmd.Parse (argc,argv);
 
 	/* Position APs */
-	
+
 	//(x, y) = calculateAPpositions(nAP);
 	//placeAP(x, y, NodeContainer);
 
 	/* Position STAs */
-	
+
 	//foreach (AP) {placeSTA(Xap, Yap, nSta, radius (=ICD/2))}
 
 	/* Configure propagation model */
@@ -69,8 +70,51 @@ int main (int argc, char *argv[])
 
 	Simulator::Stop (Seconds (simulationTime));
 	Simulator::Run ();
-	Simulator::Destroy ();
-
 
 	/* Calculate results */
+
+
+       /* End of simulation */
+        Simulator::Destroy ();
+        return 0;
 }
+
+/*      Geovani's  Part
+void placeAP(double x,double y,NodeContainer &accessPoint)
+{
+
+    MobilityHelper mobility;
+    Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
+
+
+         positionAlloc->Add (Vector (x,y, 0.0));
+         positionAlloc->Add (Vector (50.0,0.0, 0.0));
+         positionAlloc->Add (Vector (-50.0,0.0, 0.0));
+         positionAlloc->Add (Vector (0.0,50.0, 0.0));
+         positionAlloc->Add (Vector (0.0,-50.0, 0.0));
+
+
+    mobility.SetPositionAllocator (positionAlloc);
+
+    mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
+    mobility.Install (accessPoint);
+
+}
+
+void showPosition(NodeContainer &accessPoint)
+{
+
+     int APnumber = 1;
+    for(NodeContainer::Iterator nAP = accessPoint.Begin (); nAP !=accessPoint .End (); ++nAP)
+    {
+        Ptr<Node> object = *nAP;
+        Ptr<MobilityModel> position = object->GetObject<MobilityModel> ();
+        NS_ASSERT (position != 0);
+        Vector pos = position->GetPosition ();
+        std::cout <<"AP"<<"("<<APnumber<<")"<<" has coordinates "<< "(" << pos.x << ", " << pos.y <<")" << std::endl;
+        ++APnumber;
+
+    }
+
+}
+*/
