@@ -39,15 +39,20 @@ int main (int argc, char *argv[])
 	/* Initialize parameters */
 	double simulationTime = 10; //seconds
     int layers=3; 
+    bool debug=false;
 
 	/* Command line parameters */
 
 	CommandLine cmd;
 	cmd.AddValue ("simulationTime", "Simulation time [s]", simulationTime);
-    cmd.AddValue ("layers", "Number of layers in hex grid [s]", layers);
+    cmd.AddValue ("layers", "Number of layers in hex grid", layers);
+    cmd.AddValue ("debug", "Enable debug mode", debug);
 	cmd.Parse (argc,argv);
 
 	/* Position APs */
+    if(debug){
+        std::cout << "There are "<< countAPs(layers) << " APs in " << layers << " layers.\n";
+    }
   
 	
 /*
