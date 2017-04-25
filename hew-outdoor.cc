@@ -31,40 +31,26 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
+int countAPs(int layers); // Count the number of APs per layer
+
 int main (int argc, char *argv[])
 {
 
 	/* Initialize parameters */
 	double simulationTime = 10; //seconds
+    int layers=3; 
 
 	/* Command line parameters */
 
 	CommandLine cmd;
 	cmd.AddValue ("simulationTime", "Simulation time [s]", simulationTime);
+    cmd.AddValue ("layers", "Number of layers in hex grid [s]", layers);
 	cmd.Parse (argc,argv);
 
 	/* Position APs */
-  // Count the number of APs
-	/*
-	int AP_number(int layer){
-    int APsum=1; //if 1 layer - 1 AP
-    if(layer==1)
-    {
-        return APsum;
-    }
-
-    else if(layer>1)
-    {
-          for(int i=0; i<layer; i++)
-          {
-              APsum=APsum+6*i;
-          }
-        return APsum;
-
-    }
-
-}
-
+  
+	
+/*
 // calculate_AP_position function
 	double **calculate_AP_positions(double first_x, double first_y, int h, int layers){
 
@@ -217,6 +203,16 @@ int main (int argc, char *argv[])
        /* End of simulation */
         Simulator::Destroy ();
         return 0;
+}
+
+int countAPs(int layers){ 
+    int APsum=1; //if 1 layer then 1 AP
+    if(layers>1) {
+        for(int i=0; i<layers; i++) {
+              APsum=APsum+6*i;
+        }
+    }
+    return APsum;
 }
 
 /*      Geovani's  Part
