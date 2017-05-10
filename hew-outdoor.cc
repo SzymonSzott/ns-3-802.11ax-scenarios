@@ -94,10 +94,11 @@ int main (int argc, char *argv[])
         wifiApNodes.Create(countAPs(layers)); // create APnode according to the number of them
        // placeAP(APcoordinates,wifiApNodes);
 
-        if(debug)
+      /*  if(debug)
            {
               showPosition(wifiApNodes);
            }
+       */
        /* POSITION STA */
 
 	//foreach (AP) {placeSTA(Xap, Yap, nSta, radius (=ICD/2))}
