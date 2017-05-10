@@ -40,7 +40,7 @@ NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 int countAPs(int layers); // Count the number of APs per layer
 double **calculate_AP_positions(int h, int layers); //Calculate the positions of AP
 //void placeAP(double APcoordinates[][19],NodeContainer &accessPoint);  Set each AP in 2D plane (X,Y)
-void showPosition(NodeContainer &accessPoint); // show AP's positions if it runs in debug mode
+//void showPosition(NodeContainer &accessPoint); // show AP's positions if it runs in debug mode
 
 
 int main (int argc, char *argv[])
@@ -49,7 +49,7 @@ int main (int argc, char *argv[])
 	/* Initialize parameters */
 	double simulationTime = 10; //seconds
   int layers=3;
-  bool debug=true;
+  bool debug=false;
 	int h=65; //distance between AP/2
   int rows = 2; // row for x,y coordinates
   int columns = 19; // columns for the 19 APs
