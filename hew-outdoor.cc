@@ -38,7 +38,7 @@ NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
 int countAPs(int layers); // Count the number of APs per layer
 double **calculate_AP_positions(int h, int layers); //Calculate the positions of AP
-void placeAP(double APcoordinates[2][17],NodeContainer &accessPoint); // Set each AP in 2D plane (X,Y)
+void placeAP(double APcoordinates[][],NodeContainer &accessPoint); // Set each AP in 2D plane (X,Y)
 void showPosition(NodeContainer &accessPoint); // show AP's positions if it runs in debug mode
 
 
@@ -80,7 +80,7 @@ int main (int argc, char *argv[])
 
         NodeContainer wifiApNodes ;
         wifiApNodes.Create(countAPs(layers)); // create APnode according to the number of them
-        placeAP(&APpositions,wifiApNodes);
+        placeAP(APpositions,wifiApNodes);
 
         if(debug)
            {
@@ -128,7 +128,7 @@ int countAPs(int layers){
     return APsum;
 }
 
-void placeAP(double APcoordinates[2][17],NodeContainer &accessPoint)
+void placeAP(double APcoordinates[][],NodeContainer &accessPoint)
 {
 
     const int columns = 17;// there is no sense to declare the number of rows
