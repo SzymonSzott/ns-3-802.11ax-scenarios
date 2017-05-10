@@ -80,7 +80,7 @@ int main (int argc, char *argv[])
 
         NodeContainer wifiApNodes ;
         wifiApNodes.Create(countAPs(layers)); // create APnode according to the number of them
-        placeAP(APpositions,wifiApNodes);
+        placeAP(&APpositions,wifiApNodes);
 
         if(debug)
            {
