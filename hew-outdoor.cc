@@ -76,9 +76,9 @@ int main (int argc, char *argv[])
           // getting the coordinates from 2D array
         for (int i = 0; i < rows; i++)
            {
-             for (int j = 0; j < columns; w++)
+             for (int j = 0; j < columns; j++)
               {
-                APcoordinates[i][j] =  APpositions[i][j]
+                APcoordinates[i][j] =  APpositions[i][j];
               }
            }
 	//how it works
