@@ -38,6 +38,8 @@ NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
 int countAPs(int layers); // Count the number of APs per layer
 double **calculate_AP_positions(int h, int layers); //Calculate the positions of AP
+void placeAP(double x,double y,NodeContainer &accessPoint); // Set each AP in 2D plane (X,Y)
+void showPosition(NodeContainer &accessPoint);
 
 
 int main (int argc, char *argv[])
@@ -74,9 +76,15 @@ int main (int argc, char *argv[])
 			std::cout << APpositions[0][m]<< "\t" <<APpositions[1][m]<<std::endl;
 		}
 	}
-	//(x, y) = calculateAPpositions(nAP);
-	//placeAP(x, y, NodeContainer);
 
+        NodeContainer wifiApNodes ;
+        wifiApNode.Create(countAPs); // create APnode according to the number of them
+        placeAP(&APpositions,&wifiApNodes);
+
+        if(debug)
+           {
+              showPosition(&accessPoint);
+           }
 	/* Position STAs */
 
 	//foreach (AP) {placeSTA(Xap, Yap, nSta, radius (=ICD/2))}
@@ -118,20 +126,20 @@ int countAPs(int layers){
     return APsum;
 }
 
-/*      Geovani's  Part
-void placeAP(double x,double y,NodeContainer &accessPoint)
+void placeAP(double **APcoordinates,NodeContainer &accessPoint)
 {
+
+
+    const int columns = 17;// there is no sense to declare the number of rows
 
     MobilityHelper mobility;
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
 
 
-         positionAlloc->Add (Vector (x,y, 0.0));
-         positionAlloc->Add (Vector (50.0,0.0, 0.0));
-         positionAlloc->Add (Vector (-50.0,0.0, 0.0));
-         positionAlloc->Add (Vector (0.0,50.0, 0.0));
-         positionAlloc->Add (Vector (0.0,-50.0, 0.0));
-
+              for(int i = 0; i < columns; ++i)
+               {
+                 positionAlloc->Add (Vector (APcoordinates[0][i],APcoordinates[1][i], 0.0));
+               }
 
     mobility.SetPositionAllocator (positionAlloc);
 
@@ -156,7 +164,7 @@ void showPosition(NodeContainer &accessPoint)
     }
 
 }
-*/
+
 
 double **calculate_AP_positions(int h, int layers){
 
