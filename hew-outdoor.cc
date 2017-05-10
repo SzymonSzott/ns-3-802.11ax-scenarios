@@ -39,8 +39,8 @@ NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
 int countAPs(int layers); // Count the number of APs per layer
 double **calculate_AP_positions(int h, int layers); //Calculate the positions of AP
-void placeAP(double APcoordinates[][2],NodeContainer &accessPoint); // Set each AP in 2D plane (X,Y)
-void showPosition(NodeContainer &accessPoint); // show AP's positions if it runs in debug mode
+//void placeAP(double APcoordinates[][2],NodeContainer &accessPoint);  Set each AP in 2D plane (X,Y)
+//void showPosition(NodeContainer &accessPoint); // show AP's positions if it runs in debug mode
 
 
 int main (int argc, char *argv[])
@@ -49,11 +49,11 @@ int main (int argc, char *argv[])
 	/* Initialize parameters */
 	double simulationTime = 10; //seconds
   int layers=3;
-  bool debug=false;
+  bool debug=true;
 	int h=65; //distance between AP/2
   int rows = 19; // because we have 19 APs
   int columns = 2; // row for x,y coordinates
-  double APcoordinates[rows][columns];
+  double APcoordinates[19][2];
 	/* Command line parameters */
 
 	CommandLine cmd;
@@ -92,13 +92,13 @@ int main (int argc, char *argv[])
 
         NodeContainer wifiApNodes ;
         wifiApNodes.Create(countAPs(layers)); // create APnode according to the number of them
-       placeAP(APcoordinates,wifiApNodes);
+      // placeAP(APcoordinates,wifiApNodes);
 
-        if(debug)
+       /* if(debug)
            {
               showPosition(wifiApNodes);
            }
-
+*/
        /* POSITION STA */
 
 	//foreach (AP) {placeSTA(Xap, Yap, nSta, radius (=ICD/2))}
@@ -139,7 +139,7 @@ int countAPs(int layers){
     }
     return APsum;
 }
-
+/*
 void placeAP(double APcoordinates[][19],NodeContainer &accessPoint)
 {
 
@@ -178,7 +178,7 @@ void showPosition(NodeContainer &accessPoint)
 
 }
 
-
+*/
 double **calculate_AP_positions(int h, int layers){
 
 	float sq=sqrt(3);
