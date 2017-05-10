@@ -38,7 +38,7 @@ NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
 int countAPs(int layers); // Count the number of APs per layer
 double **calculate_AP_positions(int h, int layers); //Calculate the positions of AP
-void placeAP(double APcoordinates[][],NodeContainer &accessPoint); // Set each AP in 2D plane (X,Y)
+void placeAP(double APcoordinates[2][17],NodeContainer &accessPoint); // Set each AP in 2D plane (X,Y)
 void showPosition(NodeContainer &accessPoint); // show AP's positions if it runs in debug mode
 
 
@@ -77,7 +77,7 @@ int main (int argc, char *argv[])
 			std::cout << APpositions[0][m]<< "\t" <<APpositions[1][m]<<std::endl;
 		}
 	}
-
+/*
         NodeContainer wifiApNodes ;
         wifiApNodes.Create(countAPs(layers)); // create APnode according to the number of them
         placeAP(APpositions,wifiApNodes);
@@ -86,7 +86,7 @@ int main (int argc, char *argv[])
            {
               showPosition(wifiApNodes);
            }
-
+*/
         /* POSITION STA */
 
 	//foreach (AP) {placeSTA(Xap, Yap, nSta, radius (=ICD/2))}
