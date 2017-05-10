@@ -39,7 +39,7 @@ NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
 int countAPs(int layers); // Count the number of APs per layer
 double **calculate_AP_positions(int h, int layers); //Calculate the positions of AP
-void placeAP(double x[19],double y[19],NodeContainer &accessPoint); // Set each AP in 2D plane (X,Y)
+void placeAP(double *x,double *y,NodeContainer &accessPoint); // Set each AP in 2D plane (X,Y)
 void showPosition(NodeContainer &accessPoint); // show AP's positions if it runs in debug mode
 
 
@@ -141,7 +141,7 @@ int countAPs(int layers){
     return APsum;
 }
 
-void placeAP(double x[19],double y[19],NodeContainer &accessPoint)
+void placeAP(double *x,double *y,NodeContainer &accessPoint)
 {
 
      int ApNumbers = 19;// there is no sense to declare the number of rows
