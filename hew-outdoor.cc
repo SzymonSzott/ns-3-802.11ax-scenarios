@@ -48,7 +48,7 @@ int main (int argc, char *argv[])
 	/* Initialize parameters */
 	double simulationTime = 10; //seconds
   int layers=3;
-  bool debug=false;
+  bool debug=true;
 	int h=65; //distance between AP/2
 
 	/* Command line parameters */
