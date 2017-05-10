@@ -86,7 +86,7 @@ int main (int argc, char *argv[])
 	if(debug){
 		for (int m=0; m<countAPs(layers);m++){
 			std::cout << APpositions[0][m]<< "\t" <<APpositions[1][m]<<std::endl;
-
+                       x[m] <<" "<< y[m] <<endl;
 
 		}
 	}
