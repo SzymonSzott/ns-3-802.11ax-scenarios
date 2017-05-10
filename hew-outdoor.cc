@@ -49,7 +49,7 @@ int main (int argc, char *argv[])
 	/* Initialize parameters */
 	double simulationTime = 10; //seconds
   int layers=3;
-  bool debug=true;
+  bool debug=false;
 	int h=65; //distance between AP/2
   int APs =  countAPs(layers);
   double x[APs]; // x coordinates
@@ -86,7 +86,7 @@ int main (int argc, char *argv[])
 	if(debug){
 		for (int m=0; m<countAPs(layers);m++){
 			std::cout << APpositions[0][m]<< "\t" <<APpositions[1][m]<<std::endl;
-                      cout <<  x[m] <<" "<< y[m] <<endl;
+
 
 		}
 	}
