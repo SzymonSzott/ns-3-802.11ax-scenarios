@@ -33,6 +33,7 @@
 // This is an implementation of the TGax (HEW) outdoor scenario.
 
 using namespace ns3;
+using namespace std;
 
 NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
