@@ -39,8 +39,8 @@ NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
 int countAPs(int layers); // Count the number of APs per layer
 double **calculate_AP_positions(int h, int layers); //Calculate the positions of AP
-//void placeAP(double APcoordinates[][2],NodeContainer &accessPoint);  Set each AP in 2D plane (X,Y)
-//void showPosition(NodeContainer &accessPoint); // show AP's positions if it runs in debug mode
+void placeAP(double x[19],double y[19],NodeContainer &accessPoint); // Set each AP in 2D plane (X,Y)
+void showPosition(NodeContainer &accessPoint); // show AP's positions if it runs in debug mode
 
 
 int main (int argc, char *argv[])
@@ -51,9 +51,10 @@ int main (int argc, char *argv[])
   int layers=3;
   bool debug=true;
 	int h=65; //distance between AP/2
-  int rows = 19; // because we have 19 APs
-  int columns = 2; // row for x,y coordinates
-  double APcoordinates[19][2];
+  int APs =  countAPs(layers);
+  double x[APs]; // x coordinates
+  double y[APs]; // y coordinates
+
 	/* Command line parameters */
 
 	CommandLine cmd;
@@ -75,32 +76,30 @@ int main (int argc, char *argv[])
 	APpositions = calculate_AP_positions(h, layers);
 
           // getting the coordinates from 2D array
-        for (int i = 0; i < rows; i++)
+     for (int m=0; m < countAPs(layers);m++)
            {
-             for (int j = 0; j < columns; j++)
-              {
-                APcoordinates[i][j] =  APpositions[i][j];
-
-              }
+                  x[m] =  APpositions[0][m];
+                  y[m] =  APpositions[1][m];
            }
+
 	//how it works
 	if(debug){
 		for (int m=0; m<countAPs(layers);m++){
 			std::cout << APpositions[0][m]<< "\t" <<APpositions[1][m]<<std::endl;
-                        cout << "TEST TEST :"<< APcoordinates[0][m] <<" "<< APcoordinates[1][m] <<endl;
+
 
 		}
 	}
 
         NodeContainer wifiApNodes ;
         wifiApNodes.Create(countAPs(layers)); // create APnode according to the number of them
-      // placeAP(APcoordinates,wifiApNodes);
+        placeAP(x,y,wifiApNodes);
 
-       /* if(debug)
+        if(debug)
            {
               showPosition(wifiApNodes);
            }
-*/
+
        /* POSITION STA */
 
 	//foreach (AP) {placeSTA(Xap, Yap, nSta, radius (=ICD/2))}
@@ -141,19 +140,19 @@ int countAPs(int layers){
     }
     return APsum;
 }
-/*
-void placeAP(double APcoordinates[][19],NodeContainer &accessPoint)
+
+void placeAP(double x[19],double y[19],NodeContainer &accessPoint)
 {
 
-    const int columns = 19;// there is no sense to declare the number of rows
+     int ApNumbers = 19;// there is no sense to declare the number of rows
 
     MobilityHelper mobility;
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
 
 
-              for(int i = 0; i < columns; ++i)
+              for(int i = 0; i < ApNumbers ; ++i)
                {
-                 positionAlloc->Add (Vector (APcoordinates[0][i],APcoordinates[1][i], 0.0));
+                 positionAlloc->Add (Vector (x[ApNumbers],y[ApNumbers], 0.0));
                }
 
     mobility.SetPositionAllocator (positionAlloc);
@@ -180,7 +179,7 @@ void showPosition(NodeContainer &accessPoint)
 
 }
 
-*/
+
 double **calculate_AP_positions(int h, int layers){
 
 	float sq=sqrt(3);
