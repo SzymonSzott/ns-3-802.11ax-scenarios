@@ -50,7 +50,9 @@ int main (int argc, char *argv[])
   int layers=3;
   bool debug=true;
 	int h=65; //distance between AP/2
-
+  int rows = 2; // row for x,y coordinates
+  int columns = 19; // columns for the 19 APs
+  double APcoordinates[rows][columns];
 	/* Command line parameters */
 
 	CommandLine cmd;
@@ -71,6 +73,14 @@ int main (int argc, char *argv[])
 	double ** APpositions;
 	APpositions = calculate_AP_positions(h, layers);
 
+          // getting the coordinates from 2D array
+        for (int i = 0; i < rows; i++)
+           {
+             for (int j = 0; j < columns; w++)
+              {
+                APcoordinates[i][j] =  APpositions[i][j]
+              }
+           }
 	//how it works
 	if(debug){
 		for (int m=0; m<countAPs(layers);m++){
@@ -80,7 +90,7 @@ int main (int argc, char *argv[])
 
         NodeContainer wifiApNodes ;
         wifiApNodes.Create(countAPs(layers)); // create APnode according to the number of them
-        placeAP(APpositions,wifiApNodes);
+        placeAP(APcoordinates,wifiApNodes);
 
         if(debug)
            {
