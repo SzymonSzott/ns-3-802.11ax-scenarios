@@ -152,7 +152,7 @@ void placeAP(double *x,double *y,NodeContainer &accessPoint)
 
               for(int i = 0; i < ApNumbers ; ++i)
                {
-                 positionAlloc->Add (Vector (ApNumbers,ApNumbers, 0.0));
+                 positionAlloc->Add (Vector (x[i],y[i], 0.0));
                }
 
     mobility.SetPositionAllocator (positionAlloc);
