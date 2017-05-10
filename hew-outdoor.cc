@@ -80,13 +80,15 @@ int main (int argc, char *argv[])
              for (int j = 0; j < columns; j++)
               {
                 APcoordinates[i][j] =  APpositions[i][j];
-                cout << "TEST TEST "<< APcoordinates[0][j] <<" "<< APcoordinates[1][j] <<endl;
+
               }
            }
 	//how it works
 	if(debug){
 		for (int m=0; m<countAPs(layers);m++){
 			std::cout << APpositions[0][m]<< "\t" <<APpositions[1][m]<<std::endl;
+                        cout << "TEST TEST :"<< APcoordinates[0][m] <<" "<< APcoordinates[1][m] <<endl;
+
 		}
 	}
 
