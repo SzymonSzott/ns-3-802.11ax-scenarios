@@ -78,12 +78,12 @@ int main (int argc, char *argv[])
 	}
 
         NodeContainer wifiApNodes ;
-        wifiApNode.Create(countAPs); // create APnode according to the number of them
+        wifiApNodes.Create(countAPs); // create APnode according to the number of them
         placeAP(&APpositions,&wifiApNodes);
 
         if(debug)
            {
-              showPosition(&accessPoint);
+              showPosition(&wifiApNodes);
            }
 
         /* POSITION STA */
