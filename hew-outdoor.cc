@@ -91,7 +91,7 @@ int main (int argc, char *argv[])
 
 	if(debug)
             {
-		for (int m =< APs; m++)
+		for (int m = 0; m < APs; m++)
                     {
 			std::cout << APpositions[0][m]<< "\t" <<APpositions[1][m]<<std::endl;
                     }
