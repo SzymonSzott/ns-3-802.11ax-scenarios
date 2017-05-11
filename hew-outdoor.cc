@@ -38,6 +38,7 @@ NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
 int countAPs(int layers); // Count the number of APs per layer
 double **calculate_AP_positions(int h, int layers); //Calculate the positions of AP
+double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations); //calculate positions of the stations
 
 
 int main (int argc, char *argv[])
@@ -48,6 +49,7 @@ int main (int argc, char *argv[])
   int layers=3;
   bool debug=false;
 	int h=65; //distance between AP/2
+	int stations=50;
 
 	/* Command line parameters */
 
@@ -78,6 +80,19 @@ int main (int argc, char *argv[])
 	//placeAP(x, y, NodeContainer);
 
 	/* Position STAs */
+
+	double ** STApositions;
+
+	if(debug){
+        for (int x=0; x<countAPs(layers); x++){
+                std::cout<<"\n"<<"AP nr.:  "<<x<<std::endl;
+           STApositions = calculateSTApositions(APpositions[0][x], APpositions[1][x], h, stations);
+           for (int z=0; z<stations; z++){
+            std::cout<< STApositions[0][z] << "\t" << STApositions[1][z] <<std::endl;
+            }
+        }
+	}
+
 
 	//foreach (AP) {placeSTA(Xap, Yap, nSta, radius (=ICD/2))}
 
@@ -252,13 +267,8 @@ double **calculate_AP_positions(int h, int layers){
 					}
 
 
-	//std::string file_name="coord.ods";
-	//std::ofstream coordfile;
-	//coordfile.open (file_name.c_str(), std::ios::app);
 
-
-
-double** AP_co=0;
+    double** AP_co=0;
 	AP_co = new double*[2];
 	AP_co[0]=new double[APnum];
 	AP_co[1]=new double[APnum];
@@ -268,11 +278,40 @@ double** AP_co=0;
 			AP_co[1][p]=y_co[p];
 	}
 
-
-	//	for ( int m = 0; m < APnum; ++m){
-	//	coordfile<<x_co[m]<<"\t"<<y_co[m]<<std::endl;
-	//	}
-
-	//coordfile.close();
 	return AP_co;
 	}
+
+	double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations) {
+
+    srand(time(NULL));
+    double PI  =3.141592653589793238463;
+
+
+    double tab[2][n_stations];
+    double** sta_co=0;
+    sta_co = new double*[2];
+    sta_co[0]=new double[n_stations];
+    sta_co[1]=new double[n_stations];
+    double ANG = 2*PI;
+
+    float X=1;
+    for(int i=0; i<n_stations; i++){
+        float sta_x = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX/X));
+        tab[0][i]= sta_x*h;
+
+    }
+
+    for (int j=0; j<n_stations; j++){
+        float angle = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX/ANG));
+        tab[1][j]=angle;
+
+    }
+    for ( int k=0; k<n_stations; k++){
+        sta_co[0][k]=x_ap+cos(tab[1][k])*tab[0][k];
+        sta_co[1][k]=y_ap+sin(tab[1][k])*tab[0][k];
+
+    }
+
+
+    return sta_co;
+}
