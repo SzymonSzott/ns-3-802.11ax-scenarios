@@ -37,20 +37,24 @@ using namespace std;
 
 NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
-int countAPs(int layers); // Count the number of APs per layer
-double **calculateAPpositions(int h, int layers); //Calculate the positions of AP
-void placeAP(double *x,double *y,NodeContainer &accessPoint); // Place each AP in 2D plane (X,Y)
-void showPosition(NodeContainer &accessPoint); // show AP positions (only in debug mode)
+       /*******  Foward declaration of functions *******/
 
+int countAPs(int layers); // Count the number of APs per layer
+double **calculateAPpositions(int h, int layers); // Calculate the positions of AP
+void placeAP(double *x,double *y,NodeContainer &accessPoint); // Place each AP in 2D plane (X,Y)
+void showPosition(NodeContainer &accessPoint); // Show AP's positions (only in debug mode)
+
+      /*******  End of all foward declaration of functions *******/
 
 int main (int argc, char *argv[])
 {
 
 	/* Initialize parameters */
+
 	double simulationTime = 10; //seconds
-	int layers=3;
-	bool debug=false;
-	int h=65; //distance between AP/2 (radius of hex grid)
+	int layers = 3;
+	bool debug = false;
+	int h = 65; //distance between AP/2 (radius of hex grid)
 	int APs =  countAPs(layers);
 	double x[APs]; // x coordinates
 	double y[APs]; // y coordinates
@@ -65,40 +69,47 @@ int main (int argc, char *argv[])
 
 	/* Position APs */
 
-	if(debug){
+	if(debug)
+          {
 		std::cout << "There are "<< countAPs(layers) << " APs in " << layers << " layers.\n";
-	}
+	  }
 
+	/* calculate_AP_position function */
 
-
-	// calculate_AP_position function
 	double ** APpositions;
-	APpositions = calculateAPpositions(h, layers);
+	APpositions = calculateAPpositions(h,layers);
 
-	// getting the coordinates from 2D array
-	for (int m=0; m < countAPs(layers);m++)
-	{
-		x[m] =  APpositions[0][m];
-		y[m] =  APpositions[1][m];
-	}
+	/* getting the coordinates from 2D array */
 
-	//how it works
-	if(debug){
-		for (int m=0; m<countAPs(layers);m++){
-			std::cout << APpositions[0][m]<< "\t" <<APpositions[1][m]<<std::endl;
+        for (int m = 0; m < APs ; m++)
+	  {
+		x[m] =  APpositions[0][m]; // First columns represents the X values
+		y[m] =  APpositions[1][m]; // First columns represents the Y values
+	  }
 
-
-		}
-	}
-
-	NodeContainer wifiApNodes ;
-	wifiApNodes.Create(countAPs(layers)); // create APnode according to the number of them
-	placeAP(x,y,wifiApNodes);
+         /* Only for TEST purpose */
 
 	if(debug)
-	{
+            {
+		for (int m =< APs; m++)
+                    {
+			std::cout << APpositions[0][m]<< "\t" <<APpositions[1][m]<<std::endl;
+                    }
+	    }
+
+	NodeContainer wifiApNodes ;
+	wifiApNodes.Create(APs);
+
+        /* Place each AP in 2D (X,Y) plane */
+
+	placeAP(x,y,wifiApNodes);
+
+        /* Only for TEST purpose */
+
+	if(debug)
+	  {
 		showPosition(wifiApNodes);
-	}
+	  }
 
 	/* POSITION STA */
 
@@ -130,6 +141,8 @@ int main (int argc, char *argv[])
 	Simulator::Destroy ();
 	return 0;
 }
+
+  /***** Functions definition *****/
 
 int countAPs(int layers){
 	int APsum=1; //if 1 layer then 1 AP
@@ -295,3 +308,5 @@ double **calculateAPpositions(int h, int layers){
 	//coordfile.close();
 	return AP_co;
 }
+  /***** End of functions definition *****/
+
