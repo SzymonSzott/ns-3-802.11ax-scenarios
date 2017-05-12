@@ -36,22 +36,33 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
-int countAPs(int layers); // Count the number of APs per layer
-double **calculate_AP_positions(int h, int layers); //Calculate the positions of AP
-double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations); //calculate positions of the stations
+       /*******  Foward declaration of functions *******/
 
+int countAPs(int layers); // Count the number of APs per layer
+double **calculateAPpositions(int h, int layers); // Calculate the positions of AP
+void placeAP(double *x,double *y,NodeContainer &accessPoint); // Place each AP in 2D plane (X,Y)
+double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations); //calculate positions of the stations
+void showPosition(NodeContainer &accessPoint); // Show AP's positions (only in debug mode)
+
+
+      /*******  End of all foward declaration of functions *******/
 
 int main (int argc, char *argv[])
 {
 
 	/* Initialize parameters */
-	double simulationTime = 10; //seconds
-  int layers=3;
-  bool debug=false;
-	int h=65; //distance between AP/2
-	int stations=50;
 
-	/* Command line parameters */
+	double simulationTime = 10; //seconds
+
+	int stations=50;
+  int layers = 3;
+	bool debug = false;
+	int h = 65; //distance between AP/2 (radius of hex grid)
+	int APs =  countAPs(layers);
+	double x[APs]; // x coordinates
+	double y[APs]; // y coordinates
+
+/* Command line parameters */
 
 	CommandLine cmd;
 	cmd.AddValue ("simulationTime", "Simulation time [s]", simulationTime);
@@ -64,35 +75,60 @@ int main (int argc, char *argv[])
         std::cout << "There are "<< countAPs(layers) << " APs in " << layers << " layers.\n";
     }
 
+	if(debug)
+          {
+		std::cout << "There are "<< countAPs(layers) << " APs in " << layers << " layers.\n";
+	  }
 
+	/* calculate_AP_position function */
 
-// calculate_AP_position function
 	double ** APpositions;
-	APpositions = calculate_AP_positions(h, layers);
+	APpositions = calculateAPpositions(h,layers);
 
-	//how it works
-	if(debug){
-		for (int m=0; m<countAPs(layers);m++){
+	/* getting the coordinates from 2D array */
+
+        for (int m = 0; m < APs ; m++)
+	  {
+		x[m] =  APpositions[0][m]; // First columns represents the X values
+		y[m] =  APpositions[1][m]; // First columns represents the Y values
+	  }
+
+         /* Only for TEST purpose */
+
+	if(debug)
+            {
+		for (int m = 0; m < APs; m++)
+                    {
 			std::cout << APpositions[0][m]<< "\t" <<APpositions[1][m]<<std::endl;
-		}
-	}
-	//(x, y) = calculateAPpositions(nAP);
-	//placeAP(x, y, NodeContainer);
+                    }
+	    }
 
-	/* Position STAs */
+	NodeContainer wifiApNodes ;
+	wifiApNodes.Create(APs);
 
-	double ** STApositions;
+        /* Place each AP in 2D (X,Y) plane */
 
-	if(debug){
-        for (int x=0; x<countAPs(layers); x++){
-                std::cout<<"\n"<<"AP nr.:  "<<x<<std::endl;
-           STApositions = calculateSTApositions(APpositions[0][x], APpositions[1][x], h, stations);
-           for (int z=0; z<stations; z++){
-            std::cout<< STApositions[0][z] << "\t" << STApositions[1][z] <<std::endl;
-            }
-        }
-	}
+	placeAP(x,y,wifiApNodes);
 
+        /* Only for TEST purpose */
+
+	if(debug)
+	  {
+		showPosition(wifiApNodes);
+	  }
+
+	/* POSITION STA */
+double ** STApositions;
+
+if(debug){
+			for (int x=0; x<countAPs(layers); x++){
+							std::cout<<"\n"<<"AP nr.:  "<<x<<std::endl;
+				 STApositions = calculateSTApositions(APpositions[0][x], APpositions[1][x], h, stations);
+				 for (int z=0; z<stations; z++){
+					std::cout<< STApositions[0][z] << "\t" << STApositions[1][z] <<std::endl;
+					}
+			}
+}
 
 	//foreach (AP) {placeSTA(Xap, Yap, nSta, radius (=ICD/2))}
 
@@ -122,6 +158,8 @@ int main (int argc, char *argv[])
         Simulator::Destroy ();
         return 0;
 }
+
+  /***** Functions definition *****/
 
 int countAPs(int layers){
     int APsum=1; //if 1 layer then 1 AP
@@ -315,3 +353,4 @@ double **calculate_AP_positions(int h, int layers){
 
     return sta_co;
 }
+  /***** End of functions definition *****/
