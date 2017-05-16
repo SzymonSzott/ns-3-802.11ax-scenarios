@@ -41,9 +41,9 @@ NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
 int countAPs(int layers); // Count the number of APs per layer
 double **calculateAPpositions(int h, int layers); // Calculate the positions of AP
-void placeAP(double *x,double *y,NodeContainer &accessPoint); // Place each AP in 2D plane (X,Y)
+void placeNodes(double *x,double *y,int NumberOfNodes,NodeContainer &Nodes) // Place each node in 2D plane (X,Y)
 double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations); //calculate positions of the stations
-void showPosition(NodeContainer &accessPoint); // Show AP's positions (only in debug mode)
+void showPosition(NodeContainer &Nodes); // Show AP's positions (only in debug mode)
 
 
 /*******  End of all foward declaration of functions *******/
@@ -59,7 +59,7 @@ int main (int argc, char *argv[])
 	int layers = 3;
 	bool debug = false;
 	int h = 65; //distance between AP/2 (radius of hex grid)
-	int APs =  countAPs(layers);
+	int APs =  countAPs(layers); //Let's use this variable ASIA !
 	double x[APs]; // x coordinates
 	double y[APs]; // y coordinates
 
@@ -109,7 +109,7 @@ int main (int argc, char *argv[])
 
 	/* Place each AP in 2D (X,Y) plane */
 
-	placeAP(x,y,wifiApNodes);
+	placeNodes(x,y,APs,wifiApNodes);
 
 	/* Only for TEST purpose */
 
@@ -173,16 +173,14 @@ int countAPs(int layers){
 }
 
 
-void placeAP(double *x,double *y,NodeContainer &accessPoint)
+void placeNodes(double *x,double *y,int NumberOfNodes,NodeContainer &Nodes)
 {
-
-	int ApNumbers = 19;// there is no sense to declare the number of rows
 
 	MobilityHelper mobility;
 	Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
 
 
-	for(int i = 0; i < ApNumbers ; ++i)
+	for(int i = 0; i < NumberOfNodes ; ++i)
 	{
 		positionAlloc->Add (Vector (x[i],y[i], 0.0));
 	}
@@ -190,15 +188,15 @@ void placeAP(double *x,double *y,NodeContainer &accessPoint)
 	mobility.SetPositionAllocator (positionAlloc);
 
 	mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
-	mobility.Install (accessPoint);
+	mobility.Install (Nodes);
 
 }
 
-void showPosition(NodeContainer &accessPoint)
+void showPosition(NodeContainer &Nodes)
 {
 
 	int APnumber = 1;
-	for(NodeContainer::Iterator nAP = accessPoint.Begin (); nAP !=accessPoint .End (); ++nAP)
+	for(NodeContainer::Iterator nAP = Nodes.Begin (); nAP != Nodes.End (); ++nAP)
 	{
 		Ptr<Node> object = *nAP;
 		Ptr<MobilityModel> position = object->GetObject<MobilityModel> ();
