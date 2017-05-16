@@ -24,6 +24,7 @@
 #include "ns3/mobility-module.h"
 #include "ns3/internet-module.h"
 
+
 #include<iostream>
 #include<vector>
 #include<math.h>
@@ -121,11 +122,11 @@ int main (int argc, char *argv[])
 	double ** STApositions;
 
 	if(debug){
-		for (int x=0; x<countAPs(layers); x++){
-			std::cout<<"\n"<<"AP nr.:  "<<x<<std::endl;
-			STApositions = calculateSTApositions(APpositions[0][x], APpositions[1][x], h, stations);
-			for (int z=0; z<stations; z++){
-				std::cout<< STApositions[0][z] << "\t" << STApositions[1][z] <<std::endl;
+		for (int i=0; i<countAPs(layers); i++){
+			std::cout<<"\n"<<"AP nr.:  "<<i<<std::endl;
+			STApositions = calculateSTApositions(APpositions[0][i], APpositions[1][i], h, stations);
+			for (int j=0; j<stations; j++){
+				std::cout<< STApositions[0][j] << "\t" << STApositions[1][j] <<std::endl;
 			}
 		}
 	}
