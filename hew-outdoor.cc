@@ -41,7 +41,7 @@ NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
 int countAPs(int layers); // Count the number of APs per layer
 double **calculateAPpositions(int h, int layers); // Calculate the positions of AP
-void placeNodes(double *x,double *y,int NumberOfNodes,NodeContainer &Nodes) // Place each node in 2D plane (X,Y)
+void placeNodes(double *x,double *y,int NumberOfNodes,NodeContainer &Nodes); // Place each node in 2D plane (X,Y)
 double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations); //calculate positions of the stations
 void showPosition(NodeContainer &Nodes); // Show AP's positions (only in debug mode)
 
@@ -60,8 +60,10 @@ int main (int argc, char *argv[])
 	bool debug = false;
 	int h = 65; //distance between AP/2 (radius of hex grid)
 	int APs =  countAPs(layers); //Let's use this variable ASIA !
-	double x[APs]; // x coordinates
-	double y[APs]; // y coordinates
+	double xAP[APs]; // x for AP coordinates
+	double yAP[APs]; // y FOR AP coordinates
+        double xStations[stations]; // x for stations coordinates
+        double yStations[stations]; // y FOR stations coordinates
 
 	/* Command line parameters */
 
@@ -86,13 +88,13 @@ int main (int argc, char *argv[])
 	double ** APpositions;
 	APpositions = calculateAPpositions(h,layers);
 
-	/* getting the coordinates from 2D array */
+	 /* getting the coordinates for APs from 2D array */
 
-	for (int m = 0; m < APs ; m++)
-	{
-		x[m] =  APpositions[0][m]; // First columns represents the X values
-		y[m] =  APpositions[1][m]; // First columns represents the Y values
-	}
+        for (int m = 0; m < APs ; m++)
+        {
+                xAP[m] =  APpositions[0][m]; // First columns represents the X values
+                yAP[m] =  APpositions[1][m]; // First columns represents the Y values
+        }
 
 	/* Only for TEST purpose */
 
@@ -109,7 +111,7 @@ int main (int argc, char *argv[])
 
 	/* Place each AP in 2D (X,Y) plane */
 
-	placeNodes(x,y,APs,wifiApNodes);
+	placeNodes(xAP,yAP,APs,wifiApNodes);
 
 	/* Only for TEST purpose */
 
@@ -119,6 +121,7 @@ int main (int argc, char *argv[])
 	}
 
 	/* POSITION STA */
+
 	double ** STApositions;
 
 	if(debug){
@@ -130,6 +133,21 @@ int main (int argc, char *argv[])
 			}
 		}
 	}
+
+                /* getting the coordinates for stations from 2D array */
+
+        for (int i = 0; i < stations ; ++i)
+        {
+                xStations[i] =  STApositions[0][i]; // First columns represents the X values
+                yStations[i] =  STApositions[1][i]; // First columns represents the Y values
+        }
+
+         NodeContainer wifiStaNodes ;
+         wifiApNodes.Create(stations);
+
+        /* Place each stations in 2D (X,Y) plane */
+
+        placeNodes(xStations,yStations,stations,wifiStaNodes);
 
 	//foreach (AP) {placeSTA(Xap, Yap, nSta, radius (=ICD/2))}
 
