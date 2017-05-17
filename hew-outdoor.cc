@@ -62,8 +62,8 @@ int main (int argc, char *argv[])
 	int APs =  countAPs(layers); //Let's use this variable ASIA !
 	double xAP[APs]; // x for AP coordinates
 	double yAP[APs]; // y FOR AP coordinates
-        double xStations[stations]; // x for stations coordinates
-        double yStations[stations]; // y FOR stations coordinates
+	double xStations[stations]; // x for stations coordinates
+	double yStations[stations]; // y FOR stations coordinates
 
 	/* Command line parameters */
 
@@ -78,23 +78,18 @@ int main (int argc, char *argv[])
 		std::cout << "There are "<< countAPs(layers) << " APs in " << layers << " layers.\n";
 	}
 
-	if(debug)
-	{
-		std::cout << "There are "<< countAPs(layers) << " APs in " << layers << " layers.\n";
-	}
-
 	/* calculate_AP_position function */
 
 	double ** APpositions;
 	APpositions = calculateAPpositions(h,layers);
 
-	 /* getting the coordinates for APs from 2D array */
+	/* getting the coordinates for APs from 2D array */
 
-        for (int m = 0; m < APs ; m++)
-        {
-                xAP[m] =  APpositions[0][m]; // First columns represents the X values
-                yAP[m] =  APpositions[1][m]; // First columns represents the Y values
-        }
+	for (int m = 0; m < APs ; m++)
+	{
+		xAP[m] =  APpositions[0][m]; // First columns represents the X values
+		yAP[m] =  APpositions[1][m]; // First columns represents the Y values
+	}
 
 	/* Only for TEST purpose */
 
@@ -134,22 +129,20 @@ int main (int argc, char *argv[])
 		}
 	}
 
-                /* getting the coordinates for stations from 2D array */
+	/* getting the coordinates for stations from 2D array */
 
-        for (int i = 0; i < stations ; ++i)
-        {
-                xStations[i] =  STApositions[0][i]; // First columns represents the X values
-                yStations[i] =  STApositions[1][i]; // First columns represents the Y values
-        }
+	for (int i = 0; i < stations ; ++i)
+	{
+		xStations[i] =  STApositions[0][i]; // First columns represents the X values
+		yStations[i] =  STApositions[1][i]; // First columns represents the Y values
+	}
 
-         NodeContainer wifiStaNodes ;
-         wifiApNodes.Create(stations);
+	NodeContainer wifiStaNodes ;
+	wifiApNodes.Create(stations);
 
-        /* Place each stations in 2D (X,Y) plane */
+	/* Place each stations in 2D (X,Y) plane */
 
-        placeNodes(xStations,yStations,stations,wifiStaNodes);
-
-	//foreach (AP) {placeSTA(Xap, Yap, nSta, radius (=ICD/2))}
+	placeNodes(xStations,yStations,stations,wifiStaNodes);
 
 	/* Configure propagation model */
 
