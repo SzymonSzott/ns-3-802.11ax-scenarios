@@ -23,7 +23,7 @@
 #include "ns3/wifi-module.h"
 #include "ns3/mobility-module.h"
 #include "ns3/internet-module.h"
-
+#include "ns3/propagation-loss-model.h"
 
 #include<iostream>
 #include<vector>
@@ -75,7 +75,7 @@ int main (int argc, char *argv[])
 
 	/* Position APs */
 	if(debug){
-		std::cout << "There are "<< countAPs(layers) << " APs in " << layers << " layers.\n";
+		std::cout << "There are "<< APs << " APs in " << layers << " layers.\n";
 	}
 
 	/* calculate_AP_position function */
@@ -119,15 +119,18 @@ int main (int argc, char *argv[])
 
 	double ** STApositions;
 
-	if(debug){
-		for (int i=0; i<countAPs(layers); i++){
-			std::cout<<"\n"<<"AP nr.:  "<<i<<std::endl;
-			STApositions = calculateSTApositions(APpositions[0][i], APpositions[1][i], h, stations);
-			for (int j=0; j<stations; j++){
-				std::cout<< STApositions[0][j] << "\t" << STApositions[1][j] <<std::endl;
-			}
+	for (int i=0; i<APs; i++){
+		STApositions = calculateSTApositions(APpositions[0][i], APpositions[1][i], h, stations);
+
+		if(debug){
+				std::cout<< "AP number: "<<APs<<std::endl;
+				for (int j=0; j<stations; j++){
+					std::cout<< STApositions[0][j] << "\t" << STApositions[1][j] <<std::endl;
+				}
 		}
-	}
+  }
+
+
 
 	/* getting the coordinates for stations from 2D array */
 
@@ -145,6 +148,18 @@ int main (int argc, char *argv[])
 	placeNodes(xStations,yStations,stations,wifiStaNodes);
 
 	/* Configure propagation model */
+
+	WifiMacHelper wifiMac;
+  WifiHelper wifiHelper;
+  wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ac);  //PHY standard
+
+
+  /* Set up Channel */
+  YansWifiChannelHelper wifiChannel ;
+  wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
+  wifiChannel.AddPropagationLoss ("ns3::TwoRayGroundPropagationLossModel", "Frequency", DoubleValue (5e9));
+
+	Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue (80)); //set channel width
 
 	/* Configure MAC and PHY */
 
