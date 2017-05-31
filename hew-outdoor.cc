@@ -25,10 +25,10 @@
 #include "ns3/internet-module.h"
 #include "ns3/propagation-loss-model.h"
 
-#include<iostream>
-#include<vector>
-#include<math.h>
-#include<string>
+#include <iostream>
+#include <vector>
+#include <math.h>
+#include <string>
 #include <fstream>
 
 // This is an implementation of the TGax (HEW) outdoor scenario.
@@ -41,7 +41,7 @@ NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
 int countAPs(int layers); // Count the number of APs per layer
 double **calculateAPpositions(int h, int layers); // Calculate the positions of AP
-void placeNodes(double *x,double *y,int NumberOfNodes,NodeContainer &Nodes); // Place each node in 2D plane (X,Y)
+void placeNodes(double **xy,int NumberOfNodes,NodeContainer &Nodes); // Place each node in 2D plane (X,Y)
 double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations); //calculate positions of the stations
 void showPosition(NodeContainer &Nodes); // Show AP's positions (only in debug mode)
 
@@ -59,11 +59,7 @@ int main (int argc, char *argv[])
 	int layers = 3;
 	bool debug = false;
 	int h = 65; //distance between AP/2 (radius of hex grid)
-	int APs =  countAPs(layers); //Let's use this variable ASIA !
-	double xAP[APs]; // x for AP coordinates
-	double yAP[APs]; // y FOR AP coordinates
-	double xStations[stations]; // x for stations coordinates
-	double yStations[stations]; // y FOR stations coordinates
+	int APs =  countAPs(layers);
 
 	/* Command line parameters */
 
@@ -83,13 +79,6 @@ int main (int argc, char *argv[])
 	double ** APpositions;
 	APpositions = calculateAPpositions(h,layers);
 
-	/* getting the coordinates for APs from 2D array */
-
-	for (int m = 0; m < APs ; m++)
-	{
-		xAP[m] =  APpositions[0][m]; // First columns represents the X values
-		yAP[m] =  APpositions[1][m]; // First columns represents the Y values
-	}
 
 	/* Only for TEST purpose */
 
@@ -106,7 +95,7 @@ int main (int argc, char *argv[])
 
 	/* Place each AP in 2D (X,Y) plane */
 
-	placeNodes(xAP,yAP,APs,wifiApNodes);
+	placeNodes(APpositions,APs,wifiApNodes);
 
 	/* Only for TEST purpose */
 
@@ -123,41 +112,36 @@ int main (int argc, char *argv[])
 		STApositions = calculateSTApositions(APpositions[0][i], APpositions[1][i], h, stations);
 
 		if(debug){
-				std::cout<< "AP number: "<<APs<<std::endl;
-				for (int j=0; j<stations; j++){
-					std::cout<< STApositions[0][j] << "\t" << STApositions[1][j] <<std::endl;
-				}
+			std::cout<< "AP number: "<<i<<std::endl;
+			for (int j=0; j<stations; j++){
+				std::cout<< STApositions[0][j] << "\t" << STApositions[1][j] <<std::endl;
+			}
 		}
-  }
+	}
 
 
 
 	/* getting the coordinates for stations from 2D array */
 
-	for (int i = 0; i < stations ; ++i)
-	{
-		xStations[i] =  STApositions[0][i]; // First columns represents the X values
-		yStations[i] =  STApositions[1][i]; // First columns represents the Y values
-	}
 
 	NodeContainer wifiStaNodes ;
 	wifiApNodes.Create(stations);
 
 	/* Place each stations in 2D (X,Y) plane */
 
-	placeNodes(xStations,yStations,stations,wifiStaNodes);
+	placeNodes(STApositions,stations,wifiStaNodes);
 
 	/* Configure propagation model */
 
 	WifiMacHelper wifiMac;
-  WifiHelper wifiHelper;
-  wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ac);  //PHY standard
+	WifiHelper wifiHelper;
+	wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ac);  //PHY standard
 
 
-  /* Set up Channel */
-  YansWifiChannelHelper wifiChannel ;
-  wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
-  wifiChannel.AddPropagationLoss ("ns3::TwoRayGroundPropagationLossModel", "Frequency", DoubleValue (5e9));
+	/* Set up Channel */
+	YansWifiChannelHelper wifiChannel ;
+	wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
+	wifiChannel.AddPropagationLoss ("ns3::TwoRayGroundPropagationLossModel", "Frequency", DoubleValue (5e9));
 
 	Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue (80)); //set channel width
 
@@ -199,7 +183,7 @@ int countAPs(int layers){
 }
 
 
-void placeNodes(double *x,double *y,int NumberOfNodes,NodeContainer &Nodes)
+void placeNodes(double **xy,int NumberOfNodes,NodeContainer &Nodes)
 {
 
 	MobilityHelper mobility;
@@ -208,7 +192,7 @@ void placeNodes(double *x,double *y,int NumberOfNodes,NodeContainer &Nodes)
 
 	for(int i = 0; i < NumberOfNodes ; ++i)
 	{
-		positionAlloc->Add (Vector (x[i],y[i], 0.0));
+		positionAlloc->Add (Vector (xy[0][i],xy[1][i], 0.0));
 	}
 
 	mobility.SetPositionAllocator (positionAlloc);
