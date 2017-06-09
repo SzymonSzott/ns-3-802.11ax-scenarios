@@ -106,10 +106,17 @@ int main (int argc, char *argv[])
 
 	/* POSITION STA */
 
+	NodeContainer wifiStaNodes ;
+	wifiApNodes.Create(stations);
+
 	double ** STApositions;
 
 	for (int i=0; i<APs; i++){
 		STApositions = calculateSTApositions(APpositions[0][i], APpositions[1][i], h, stations);
+
+		/* Place each stations in 2D (X,Y) plane */
+
+		placeNodes(STApositions,stations,wifiStaNodes);
 
 		if(debug){
 			std::cout<< "AP number: "<<i<<std::endl;
@@ -118,18 +125,6 @@ int main (int argc, char *argv[])
 			}
 		}
 	}
-
-
-
-	/* getting the coordinates for stations from 2D array */
-
-
-	NodeContainer wifiStaNodes ;
-	wifiApNodes.Create(stations);
-
-	/* Place each stations in 2D (X,Y) plane */
-
-	placeNodes(STApositions,stations,wifiStaNodes);
 
 	/* Configure propagation model */
 
