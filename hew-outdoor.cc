@@ -41,7 +41,7 @@ NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
 int countAPs(int layers); // Count the number of APs per layer
 double **calculateAPpositions(int h, int layers); // Calculate the positions of AP
-void placeNodes(double **xy,int NumberOfNodes,NodeContainer &Nodes); // Place each node in 2D plane (X,Y)
+void placeNodes(double **xy,NodeContainer &Nodes); // Place each node in 2D plane (X,Y)
 double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations); //calculate positions of the stations
 void showPosition(NodeContainer &Nodes); // Show AP's positions (only in debug mode)
 
@@ -55,7 +55,7 @@ int main (int argc, char *argv[])
 
 	double simulationTime = 10; //seconds
 
-	int stations=50;
+	int stations = 50;
 	int layers = 3;
 	bool debug = false;
 	int h = 65; //distance between AP/2 (radius of hex grid)
@@ -95,7 +95,7 @@ int main (int argc, char *argv[])
 
 	/* Place each AP in 2D (X,Y) plane */
 
-	placeNodes(APpositions,APs,wifiApNodes);
+	placeNodes(APpositions,wifiApNodes);
 
 	/* Only for TEST purpose */
 
@@ -129,7 +129,7 @@ int main (int argc, char *argv[])
 
 	/* Place each stations in 2D (X,Y) plane */
 
-	placeNodes(STApositions,stations,wifiStaNodes);
+	placeNodes(STApositions,wifiStaNodes);
 
 	/* Configure propagation model */
 
@@ -183,23 +183,22 @@ int countAPs(int layers){
 }
 
 
-void placeNodes(double **xy,int NumberOfNodes,NodeContainer &Nodes)
+void placeNodes(double **xy,NodeContainer &Nodes)
 {
+
+        uint32_t nNodes = Nodes.GetN ();
 
 	MobilityHelper mobility;
 	Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
 
-
-	for(int i = 0; i < NumberOfNodes ; ++i)
+	for(uint32_t i = 0; i < nNodes; ++i)
 	{
 		positionAlloc->Add (Vector (xy[0][i],xy[1][i], 0.0));
 	}
 
 	mobility.SetPositionAllocator (positionAlloc);
-
 	mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
 	mobility.Install (Nodes);
-
 }
 
 void showPosition(NodeContainer &Nodes)
