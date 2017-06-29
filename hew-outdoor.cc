@@ -16,6 +16,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Authors: Szymon Szott <szott@kt.agh.edu.pl>
+            Geovani Teca <tecageovani@gmail.com>
  */
 
 #include "ns3/core-module.h"
@@ -30,6 +31,7 @@
 #include <math.h>
 #include <string>
 #include <fstream>
+
 
 // This is an implementation of the TGax (HEW) outdoor scenario.
 
@@ -54,7 +56,7 @@ int main (int argc, char *argv[])
 	/* Initialize parameters */
 
 	double simulationTime = 10; //seconds
-
+        bool enableCtsRts = true; // 10 seconds RTS/CTS disable by default
 	int stations = 50;
 	int layers = 3;
 	bool debug = false;
@@ -68,6 +70,15 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("layers", "Number of layers in hex grid", layers);
 	cmd.AddValue ("debug", "Enable debug mode", debug);
 	cmd.Parse (argc,argv);
+
+        /* Enable or disable RTS/CTS */
+
+        if(enableCtsRts)
+          {
+            std::cout <<"CTS/RTS is enable "<< std::endl;
+            UintegerValue ctsThr = (enableCtsRts ? UintegerValue (100) : UintegerValue (65535));
+            Config::SetDefault ("ns3::WifiRemoteStationManager::RtsCtsThreshold", ctsThr);
+          }
 
 	/* Position APs */
 	if(debug){
