@@ -167,13 +167,13 @@ int main (int argc, char *argv[])
   	wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue ("HtMcs7"), "ControlMode", StringValue ("HtMcs0")); // 7 or 9?
   	wifiPhy.Set ("ShortGuardEnabled", BooleanValue (false));
 
-	NetDeviceContainer devices = wifi.Install (wifiPhy, wifiMac, wifiApNodes);
+	NetDeviceContainer apDevices = wifiHelper.Install (wifiPhy, wifiMac, wifiApNodes);
 	
 	wifiPhy.Set ("TxPowerStart", DoubleValue (15.0)); 
   	wifiPhy.Set ("TxPowerEnd", DoubleValue (15.0)); 
   	wifiPhy.Set ("TxPowerLevels", UintegerValue (1));
   	wifiPhy.Set ("TxGain", DoubleValue (-2)); // for STA -2 dBi
-  	NetDeviceContainer devices = wifi.Install (wifiPhy, wifiMac, wifiStaNodes);
+  	NetDeviceContainer staDevices = wifiHelper.Install (wifiPhy, wifiMac, wifiStaNodes);
 
 	//PopulateArpCache ();
 
