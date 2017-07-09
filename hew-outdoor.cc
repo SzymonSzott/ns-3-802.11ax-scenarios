@@ -56,7 +56,7 @@ int main (int argc, char *argv[])
 	/* Initialize parameters */
 
 	double simulationTime = 10; //seconds
-        bool enableCtsRts = true; // 10 seconds RTS/CTS disable by default
+	bool enableRtsCts = false; // RTS/CTS disabled by default
 	int stations = 50;
 	int layers = 3;
 	bool debug = false;
@@ -69,16 +69,16 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("simulationTime", "Simulation time [s]", simulationTime);
 	cmd.AddValue ("layers", "Number of layers in hex grid", layers);
 	cmd.AddValue ("debug", "Enable debug mode", debug);
+	cmd.AddValue ("rts", "Enable RTS/CTS", enableRtsCts);
 	cmd.Parse (argc,argv);
 
-        /* Enable or disable RTS/CTS */
+	/* Enable or disable RTS/CTS */
 
-        if(enableCtsRts)
-          {
-            std::cout <<"CTS/RTS is enable "<< std::endl;
-            UintegerValue ctsThr = (enableCtsRts ? UintegerValue (100) : UintegerValue (65535));
-            Config::SetDefault ("ns3::WifiRemoteStationManager::RtsCtsThreshold", ctsThr);
-          }
+	if(enableRtsCts)
+	{
+		UintegerValue ctsThr = (enableRtsCts ? UintegerValue (100) : UintegerValue (65535));
+		Config::SetDefault ("ns3::WifiRemoteStationManager::RtsCtsThreshold", ctsThr);
+	}
 
 	/* Position APs */
 	if(debug){
@@ -147,7 +147,7 @@ int main (int argc, char *argv[])
 
 	/* Set up Channel */
 
-	YansWifiChannelHelper wifiChannel ;
+	YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default ();
 	wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
 	wifiChannel.AddPropagationLoss ("ns3::TwoRayGroundPropagationLossModel", "Frequency", DoubleValue (5e9));
 
@@ -155,12 +155,27 @@ int main (int argc, char *argv[])
 
 	/* Configure MAC and PHY */
 
-        /* I declared this two staDevices and apDevices just to allow me
-           to assign addresses to aps and stations around them,but this
-           session is not configured yet :) . GT
-        */
-        NetDeviceContainer staDevices;
-        NetDeviceContainer apDevices;
+	YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default ();
+	wifiPhy.SetChannel (wifiChannel.Create ());
+	wifiPhy.Set ("TxPowerStart", DoubleValue (20.0)); 
+	wifiPhy.Set ("TxPowerEnd", DoubleValue (20.0));
+	wifiPhy.Set ("TxPowerLevels", UintegerValue (1));
+	wifiPhy.Set ("TxGain", DoubleValue (0)); 
+	wifiPhy.Set ("RxGain", DoubleValue (0));
+	wifiPhy.Set ("RxNoiseFigure", DoubleValue (7));
+	wifiPhy.Set ("CcaMode1Threshold", DoubleValue (-79));
+	wifiPhy.Set ("EnergyDetectionThreshold", DoubleValue (-79 + 3));
+	wifiPhy.SetErrorRateModel ("ns3::YansErrorRateModel");
+	wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue ("VhtMcs9"), "ControlMode", StringValue ("VhtMcs0"), "MaxSlrc", UintegerValue (10));
+	wifiPhy.Set ("ShortGuardEnabled", BooleanValue (false));
+
+	NetDeviceContainer apDevices = wifiHelper.Install (wifiPhy, wifiMac, wifiApNodes);
+
+	wifiPhy.Set ("TxPowerStart", DoubleValue (15.0)); 
+	wifiPhy.Set ("TxPowerEnd", DoubleValue (15.0)); 
+	wifiPhy.Set ("TxPowerLevels", UintegerValue (1));
+	wifiPhy.Set ("TxGain", DoubleValue (-2)); // for STA -2 dBi
+	NetDeviceContainer staDevices = wifiHelper.Install (wifiPhy, wifiMac, wifiStaNodes);
 
 	//PopulateArpCache ();
 
@@ -211,7 +226,7 @@ int countAPs(int layers){
 void placeNodes(double **xy,NodeContainer &Nodes)
 {
 
-        uint32_t nNodes = Nodes.GetN ();
+	uint32_t nNodes = Nodes.GetN ();
 
 	MobilityHelper mobility;
 	Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
