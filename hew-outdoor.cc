@@ -117,7 +117,7 @@ int main (int argc, char *argv[])
 
 	/* POSITION STA */
 
-	NodeContainer wifiStaNodes ;
+	NodeContainer wifiStaNodes;
 	wifiApNodes.Create(stations);
 
 	double ** STApositions;
@@ -146,6 +146,7 @@ int main (int argc, char *argv[])
 
 
 	/* Set up Channel */
+
 	YansWifiChannelHelper wifiChannel ;
 	wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
 	wifiChannel.AddPropagationLoss ("ns3::TwoRayGroundPropagationLossModel", "Frequency", DoubleValue (5e9));
@@ -154,9 +155,26 @@ int main (int argc, char *argv[])
 
 	/* Configure MAC and PHY */
 
+        /* I declared this two staDevices and apDevices just to allow me
+           to assign addresses to aps and stations around them,but this
+           session is not configured yet :) . GT
+        */
+        NetDeviceContainer staDevices;
+        NetDeviceContainer apDevices;
+
 	//PopulateArpCache ();
 
 	/* Configure Internet stack */
+
+         InternetStackHelper stack;
+         stack.Install (wifiApNodes);
+         stack.Install (wifiStaNodes);
+
+         Ipv4AddressHelper address;
+         address.SetBase ("10.1.0.0", "255.255.252.0");
+         address.Assign (staDevices);
+         address.Assign (apDevices);
+
 
 	/* Configure applications */
 
