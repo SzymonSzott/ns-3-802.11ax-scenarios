@@ -25,6 +25,8 @@
 #include "ns3/mobility-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/propagation-loss-model.h"
+#include "ns3/node-list.h"
+#include "ns3/ipv4-l3-protocol.h"
 
 #include <iostream>
 #include <vector>
@@ -46,7 +48,7 @@ double **calculateAPpositions(int h, int layers); // Calculate the positions of 
 void placeNodes(double **xy,NodeContainer &Nodes); // Place each node in 2D plane (X,Y)
 double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations); //calculate positions of the stations
 void showPosition(NodeContainer &Nodes); // Show AP's positions (only in debug mode)
-
+void PopulateARPcache ();
 
 /*******  End of all foward declaration of functions *******/
 
@@ -177,8 +179,6 @@ int main (int argc, char *argv[])
 	wifiPhy.Set ("TxGain", DoubleValue (-2)); // for STA -2 dBi
 	NetDeviceContainer staDevices = wifiHelper.Install (wifiPhy, wifiMac, wifiStaNodes);
 
-	//PopulateArpCache ();
-
 	/* Configure Internet stack */
 
          InternetStackHelper stack;
@@ -190,6 +190,9 @@ int main (int argc, char *argv[])
          address.Assign (staDevices);
          address.Assign (apDevices);
 
+         /* PopulateArpCache  */
+
+          PopulateARPcache ();
 
 	/* Configure applications */
 
@@ -400,4 +403,60 @@ double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations) 
 
 	return sta_co;
 }
+
+//Populate ARP cache
+
+void PopulateARPcache ()
+{
+	Ptr<ArpCache> arp = CreateObject<ArpCache> ();
+	arp->SetAliveTimeout (Seconds (3600 * 24 * 365) );
+
+	for (NodeList::Iterator i = NodeList::Begin (); i != NodeList::End (); ++i)
+	{
+		Ptr<Ipv4L3Protocol> ip = (*i)->GetObject<Ipv4L3Protocol> ();
+		NS_ASSERT (ip !=0);
+		ObjectVectorValue interfaces;
+		ip->GetAttribute ("InterfaceList", interfaces);
+
+		for (ObjectVectorValue::Iterator j = interfaces.Begin (); j != interfaces.End (); j++)
+		{
+			Ptr<Ipv4Interface> ipIface = (*j).second->GetObject<Ipv4Interface> ();
+			NS_ASSERT (ipIface != 0);
+			Ptr<NetDevice> device = ipIface->GetDevice ();
+			NS_ASSERT (device != 0);
+			Mac48Address addr = Mac48Address::ConvertFrom (device->GetAddress () );
+
+			for (uint32_t k = 0; k < ipIface->GetNAddresses (); k++)
+			{
+				Ipv4Address ipAddr = ipIface->GetAddress (k).GetLocal();
+				if (ipAddr == Ipv4Address::GetLoopback ())
+					continue;
+
+				ArpCache::Entry *entry = arp->Add (ipAddr);
+				Ipv4Header ipv4Hdr;
+				ipv4Hdr.SetDestination (ipAddr);
+				Ptr<Packet> p = Create<Packet> (100);  
+				entry->MarkWaitReply (ArpCache::Ipv4PayloadHeaderPair (p, ipv4Hdr));
+				entry->MarkAlive (addr);
+			}
+		}
+	}
+
+	for (NodeList::Iterator i = NodeList::Begin (); i != NodeList::End (); ++i)
+	{
+		Ptr<Ipv4L3Protocol> ip = (*i)->GetObject<Ipv4L3Protocol> ();
+		NS_ASSERT (ip !=0);
+		ObjectVectorValue interfaces;
+		ip->GetAttribute ("InterfaceList", interfaces);
+
+		for (ObjectVectorValue::Iterator j = interfaces.Begin (); j != interfaces.End (); j ++)
+		{
+			Ptr<Ipv4Interface> ipIface = (*j).second->GetObject<Ipv4Interface> ();
+			ipIface->SetAttribute ("ArpCache", PointerValue (arp) );
+		}
+	}
+}
+
+
+
 /***** End of functions definition *****/
