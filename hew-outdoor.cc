@@ -120,7 +120,7 @@ int main (int argc, char *argv[])
 	/* POSITION STA */
 
 	NodeContainer wifiStaNodes;
-	wifiApNodes.Create(stations);
+	wifiStaNodes.Create(stations);
 
 	double ** STApositions;
 
