@@ -16,7 +16,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Authors: Szymon Szott <szott@kt.agh.edu.pl>
-            Geovani Teca <tecageovani@gmail.com>
+ Geovani Teca <tecageovani@gmail.com>
  */
 
 #include "ns3/core-module.h"
@@ -76,10 +76,11 @@ int main (int argc, char *argv[])
 
 	/* Enable or disable RTS/CTS */
 
-	if(enableRtsCts)
-	{
-		UintegerValue ctsThr = (enableRtsCts ? UintegerValue (100) : UintegerValue (65535));
-		Config::SetDefault ("ns3::WifiRemoteStationManager::RtsCtsThreshold", ctsThr);
+	if (enableRtsCts) {
+		Config::SetDefault("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue ("100"));
+	} 
+	else {
+		Config::SetDefault("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue ("1100000"));
 	}
 
 	/* Position APs */
@@ -181,18 +182,18 @@ int main (int argc, char *argv[])
 
 	/* Configure Internet stack */
 
-         InternetStackHelper stack;
-         stack.Install (wifiApNodes);
-         stack.Install (wifiStaNodes);
+	InternetStackHelper stack;
+	stack.Install (wifiApNodes);
+	stack.Install (wifiStaNodes);
 
-         Ipv4AddressHelper address;
-         address.SetBase ("10.1.0.0", "255.255.252.0");
-         address.Assign (staDevices);
-         address.Assign (apDevices);
+	Ipv4AddressHelper address;
+	address.SetBase ("10.1.0.0", "255.255.252.0");
+	address.Assign (staDevices);
+	address.Assign (apDevices);
 
-         /* PopulateArpCache  */
+	/* PopulateArpCache  */
 
-          PopulateARPcache ();
+	PopulateARPcache ();
 
 	/* Configure applications */
 
