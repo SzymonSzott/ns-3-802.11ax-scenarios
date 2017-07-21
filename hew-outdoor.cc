@@ -16,7 +16,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Authors: Szymon Szott <szott@kt.agh.edu.pl>
- Geovani Teca <tecageovani@gmail.com>
+   Geovani Teca <tecageovani@gmail.com>
  */
 
 #include "ns3/core-module.h"
@@ -36,7 +36,7 @@
 
 
 // This is an implementation of the TGax (HEW) outdoor scenario.
-
+using namespace std;
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
@@ -61,7 +61,7 @@ int main (int argc, char *argv[])
 	bool enableRtsCts = false; // RTS/CTS disabled by default
 	int stations = 50;
 	int layers = 3;
-	bool debug = false;
+	bool debug = true;
 	int h = 65; //distance between AP/2 (radius of hex grid)
 	int APs =  countAPs(layers);
 
@@ -83,7 +83,8 @@ int main (int argc, char *argv[])
 		Config::SetDefault("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue ("1100000"));
 	}
 
-	/* Position APs */
+	/* Calculate the number of  APs */
+
 	if(debug){
 		std::cout << "There are "<< APs << " APs in " << layers << " layers.\n";
 	}
@@ -93,21 +94,10 @@ int main (int argc, char *argv[])
 	double ** APpositions;
 	APpositions = calculateAPpositions(h,layers);
 
-
-	/* Only for TEST purpose */
-
-	if(debug)
-	{
-		for (int m = 0; m < APs; m++)
-		{
-			std::cout << APpositions[0][m]<< "\t" <<APpositions[1][m]<<std::endl;
-		}
-	}
-
 	NodeContainer wifiApNodes ;
 	wifiApNodes.Create(APs);
 
-	/* Place each AP in 2D (X,Y) plane */
+	/* Place each AP in 3D (X,Y,Z) plane */
 
 	placeNodes(APpositions,wifiApNodes);
 
@@ -115,33 +105,33 @@ int main (int argc, char *argv[])
 
 	if(debug)
 	{
-		showPosition(wifiApNodes);
+           cout <<"Show AP's position : "<<endl;
+	   showPosition(wifiApNodes);
 	}
 
 	/* POSITION STA */
 
 	NodeContainer wifiStaNodes;
-	wifiApNodes.Create(stations);
+	wifiStaNodes.Create(stations);
 
 	double ** STApositions;
 
 	for (int i=0; i<APs; i++){
 		STApositions = calculateSTApositions(APpositions[0][i], APpositions[1][i], h, stations);
+           }
+		/* Place each stations in 3D (X,Y,Z) plane */
 
-		/* Place each stations in 2D (X,Y) plane */
+	placeNodes(STApositions,wifiStaNodes);
 
-		placeNodes(STApositions,wifiStaNodes);
+        /* Only for TEST purpose */
 
-		if(debug){
-			std::cout<< "AP number: "<<i<<std::endl;
-			for (int j=0; j<stations; j++){
-				std::cout<< STApositions[0][j] << "\t" << STApositions[1][j] <<std::endl;
-			}
-		}
-	}
+        if(debug)
+        {
+           cout <<"Show AP's position : "<<endl;
+           showPosition(wifiStaNodes);
+        }
 
-
-	/* Configure propagation model */
+ 	/* Configure propagation model */
 
 	WifiMacHelper wifiMac;
 	WifiHelper wifiHelper;
@@ -218,26 +208,32 @@ int main (int argc, char *argv[])
 
 int countAPs(int layers){
 	int APsum=1; //if 1 layer then 1 AP
-	if(layers>1) {
-		for(int i=0; i<layers; i++) {
+	if(layers>1) 
+          {
+	    for(int i=0; i<layers; i++) 
+                {
 			APsum=APsum+6*i;
-		}
-	}
+                }
+       	  }
+
 	return APsum;
 }
 
-
 void placeNodes(double **xy,NodeContainer &Nodes)
 {
-
 	uint32_t nNodes = Nodes.GetN ();
-
+        double height = 0.0;
 	MobilityHelper mobility;
 	Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
 
+     if(xy[0][0] == 0 && xy[1][0] == 0)
+     height = 10.0;
+     else
+     height = 1.5;
+
 	for(uint32_t i = 0; i < nNodes; ++i)
 	{
-		positionAlloc->Add (Vector (xy[0][i],xy[1][i], 0.0));
+		positionAlloc->Add (Vector (xy[0][i],xy[1][i],height));
 	}
 
 	mobility.SetPositionAllocator (positionAlloc);
@@ -248,18 +244,17 @@ void placeNodes(double **xy,NodeContainer &Nodes)
 void showPosition(NodeContainer &Nodes)
 {
 
-	int APnumber = 1;
+        uint32_t NodeNumber = 1;
+
 	for(NodeContainer::Iterator nAP = Nodes.Begin (); nAP != Nodes.End (); ++nAP)
 	{
 		Ptr<Node> object = *nAP;
 		Ptr<MobilityModel> position = object->GetObject<MobilityModel> ();
 		NS_ASSERT (position != 0);
 		Vector pos = position->GetPosition ();
-		std::cout <<"AP"<<"("<<APnumber<<")"<<" has coordinates "<< "(" << pos.x << ", " << pos.y <<")" << std::endl;
-		++APnumber;
-
+		std::cout <<"Node Number"<<"("<< NodeNumber <<")"<<" has coordinates "<< "(" << pos.x << ", "<< pos.y <<", "<< pos.z <<")" << std::endl;
+		++NodeNumber;
 	}
-
 }
 
 double **calculateAPpositions(int h, int layers){
