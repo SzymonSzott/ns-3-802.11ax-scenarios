@@ -136,7 +136,7 @@ int main (int argc, char *argv[])
 	WifiMacHelper wifiMac;
 	WifiHelper wifiHelper;
 	wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ac);  //PHY standard
-
+  wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue ("VhtMcs9"), "ControlMode", StringValue ("VhtMcs0"), "MaxSlrc", UintegerValue (10));
 
 	/* Set up Channel */
 
@@ -144,31 +144,42 @@ int main (int argc, char *argv[])
 	wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
 	wifiChannel.AddPropagationLoss ("ns3::TwoRayGroundPropagationLossModel", "Frequency", DoubleValue (5e9));
 
-	Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue (80)); //set channel width
+
 
 	/* Configure MAC and PHY */
 
 	YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default ();
 	wifiPhy.SetChannel (wifiChannel.Create ());
-	wifiPhy.Set ("TxPowerStart", DoubleValue (20.0)); 
+	wifiPhy.Set ("TxPowerStart", DoubleValue (20.0));
 	wifiPhy.Set ("TxPowerEnd", DoubleValue (20.0));
 	wifiPhy.Set ("TxPowerLevels", UintegerValue (1));
-	wifiPhy.Set ("TxGain", DoubleValue (0)); 
+	wifiPhy.Set ("TxGain", DoubleValue (0));
 	wifiPhy.Set ("RxGain", DoubleValue (0));
 	wifiPhy.Set ("RxNoiseFigure", DoubleValue (7));
 	wifiPhy.Set ("CcaMode1Threshold", DoubleValue (-79));
 	wifiPhy.Set ("EnergyDetectionThreshold", DoubleValue (-79 + 3));
 	wifiPhy.SetErrorRateModel ("ns3::YansErrorRateModel");
-	wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue ("VhtMcs9"), "ControlMode", StringValue ("VhtMcs0"), "MaxSlrc", UintegerValue (10));
 	wifiPhy.Set ("ShortGuardEnabled", BooleanValue (false));
+
+	Ssid ssid = Ssid ("network");
+	wifiMac.SetType ("ns3::ApWifiMac",
+									 "Ssid", SsidValue (ssid));
 
 	NetDeviceContainer apDevices = wifiHelper.Install (wifiPhy, wifiMac, wifiApNodes);
 
-	wifiPhy.Set ("TxPowerStart", DoubleValue (15.0)); 
-	wifiPhy.Set ("TxPowerEnd", DoubleValue (15.0)); 
+	wifiPhy.Set ("TxPowerStart", DoubleValue (15.0));
+	wifiPhy.Set ("TxPowerEnd", DoubleValue (15.0));
 	wifiPhy.Set ("TxPowerLevels", UintegerValue (1));
 	wifiPhy.Set ("TxGain", DoubleValue (-2)); // for STA -2 dBi
+
+	wifiMac.SetType ("ns3::StaWifiMac",
+ 									 "Ssid", SsidValue (ssid),
+ 									 "ActiveProbing", BooleanValue (false));
+
 	NetDeviceContainer staDevices = wifiHelper.Install (wifiPhy, wifiMac, wifiStaNodes);
+
+
+Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue (80)); //set channel width
 
 	/* Configure Internet stack */
 
@@ -431,7 +442,7 @@ void PopulateARPcache ()
 				ArpCache::Entry *entry = arp->Add (ipAddr);
 				Ipv4Header ipv4Hdr;
 				ipv4Hdr.SetDestination (ipAddr);
-				Ptr<Packet> p = Create<Packet> (100);  
+				Ptr<Packet> p = Create<Packet> (100);
 				entry->MarkWaitReply (ArpCache::Ipv4PayloadHeaderPair (p, ipv4Hdr));
 				entry->MarkAlive (addr);
 			}
