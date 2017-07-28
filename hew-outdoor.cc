@@ -78,7 +78,7 @@ int main (int argc, char *argv[])
 
 	if (enableRtsCts) {
 		Config::SetDefault("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue ("100"));
-	} 
+	}
 	else {
 		Config::SetDefault("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue ("1100000"));
 	}
@@ -111,32 +111,32 @@ int main (int argc, char *argv[])
 
 	/* POSITION STA */
 
-	NodeContainer wifiStaNodes;
-	wifiStaNodes.Create(stations);
+	NodeContainer wifiStaNodes[APs];
+	for(int APindex = 0; APindex < APs; ++APindex)
+	  {
+	      wifiStaNodes[APindex].Create(stations);
+	      double **STApositions;
+              STApositions = calculateSTApositions(APpositions[0][APindex], APpositions[1][APindex], h, stations);
 
-	double ** STApositions;
+	  /* Place each stations in 3D (X,Y,Z) plane */
 
-	for (int i=0; i<APs; i++){
-		STApositions = calculateSTApositions(APpositions[0][i], APpositions[1][i], h, stations);
-           }
-		/* Place each stations in 3D (X,Y,Z) plane */
+	     placeNodes(STApositions,wifiStaNodes[APindex]);
 
-	placeNodes(STApositions,wifiStaNodes);
+          /* Only for TEST purpose */
 
-        /* Only for TEST purpose */
-
-        if(debug)
-        {
-           cout <<"Show AP's position : "<<endl;
-           showPosition(wifiStaNodes);
-        }
+             if(debug)
+                {
+                 cout <<"Show Stations around AP("<<APindex<<"):"<<endl;
+                 showPosition(wifiStaNodes[APindex]);
+                }
+	  }
 
  	/* Configure propagation model */
 
 	WifiMacHelper wifiMac;
 	WifiHelper wifiHelper;
 	wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ac);  //PHY standard
-  wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue ("VhtMcs9"), "ControlMode", StringValue ("VhtMcs0"), "MaxSlrc", UintegerValue (10));
+        wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue ("VhtMcs9"), "ControlMode", StringValue ("VhtMcs0"), "MaxSlrc", UintegerValue (10));
 
 	/* Set up Channel */
 
@@ -161,9 +161,9 @@ int main (int argc, char *argv[])
 	wifiPhy.SetErrorRateModel ("ns3::YansErrorRateModel");
 	wifiPhy.Set ("ShortGuardEnabled", BooleanValue (false));
 
-	Ssid ssid = Ssid ("network");
+	Ssid ssid = Ssid ("hew-outdoor-network");
 	wifiMac.SetType ("ns3::ApWifiMac",
-									 "Ssid", SsidValue (ssid));
+			 "Ssid", SsidValue (ssid));
 
 	NetDeviceContainer apDevices = wifiHelper.Install (wifiPhy, wifiMac, wifiApNodes);
 
@@ -173,24 +173,33 @@ int main (int argc, char *argv[])
 	wifiPhy.Set ("TxGain", DoubleValue (-2)); // for STA -2 dBi
 
 	wifiMac.SetType ("ns3::StaWifiMac",
- 									 "Ssid", SsidValue (ssid),
- 									 "ActiveProbing", BooleanValue (false));
+                         "Ssid", SsidValue (ssid),
+ 		         "ActiveProbing", BooleanValue (false));
 
-	NetDeviceContainer staDevices = wifiHelper.Install (wifiPhy, wifiMac, wifiStaNodes);
+        NetDeviceContainer staDevices[APs];
+        for(int i = 0; i < APs; ++i)
+        {
+          staDevices[i] = wifiHelper.Install (wifiPhy, wifiMac, wifiStaNodes[i]);
+        }
 
-
-Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue (80)); //set channel width
+        Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue (80)); //set channel width
 
 	/* Configure Internet stack */
 
 	InternetStackHelper stack;
 	stack.Install (wifiApNodes);
-	stack.Install (wifiStaNodes);
+	for(int i = 0; i < APs; ++i)
+	   {
+             stack.Install (wifiStaNodes[i]);
+           }
 
 	Ipv4AddressHelper address;
 	address.SetBase ("10.1.0.0", "255.255.252.0");
-	address.Assign (staDevices);
 	address.Assign (apDevices);
+        for(int i = 0; i < APs; ++i)
+           {
+             address.Assign (staDevices[i]);
+           }
 
 	/* PopulateArpCache  */
 
@@ -219,9 +228,9 @@ Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", Ui
 
 int countAPs(int layers){
 	int APsum=1; //if 1 layer then 1 AP
-	if(layers>1) 
+	if(layers>1)
           {
-	    for(int i=0; i<layers; i++) 
+	    for(int i=0; i<layers; i++)
                 {
 			APsum=APsum+6*i;
                 }
@@ -237,14 +246,14 @@ void placeNodes(double **xy,NodeContainer &Nodes)
 	MobilityHelper mobility;
 	Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
 
-     if(xy[0][0] == 0 && xy[1][0] == 0)
-     height = 10.0;
-     else
-     height = 1.5;
+        if(xy[0][0] == 0 && xy[1][0] == 0)
+        height = 10.0;
+        else
+        height = 1.5;
 
 	for(uint32_t i = 0; i < nNodes; ++i)
 	{
-		positionAlloc->Add (Vector (xy[0][i],xy[1][i],height));
+	  positionAlloc->Add (Vector (xy[0][i],xy[1][i],height));
 	}
 
 	mobility.SetPositionAllocator (positionAlloc);
@@ -278,9 +287,6 @@ double **calculateAPpositions(int h, int layers){
 
 
 	int APnum=countAPs(layers); //number of AP calculated by the AP_number function
-
-	std::cout<<APnum<<std::endl;
-
 
 	std::vector <float> x_co;
 	std::vector <float> y_co;
