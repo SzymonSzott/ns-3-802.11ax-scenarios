@@ -151,7 +151,21 @@ int main (int argc, char *argv[])
 			wifiPhy.Set ("ShortGuardEnabled", BooleanValue (true));
 		  channelWidth = 80;
 	}
+	else if (phy == "n")
+	{
+	/******************************* 802.11n 2.4 GHz *****************/
 
+	    wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211n_5GHZ);
+	    wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
+	                                  "DataMode", StringValue ("HtMcs7"),
+	                                   "ControlMode", StringValue ("HtMcs0"));
+			wifiPhy.Set ("ShortGuardEnabled", BooleanValue (1));
+	    channelWidth = 40;
+	}
+	else{
+		std::cout<<"Given PHY doesn't exist or cannot be chosen. Choose one of the following:\n1. n\n2. ac\n3. ax"<<endl;
+		exit(0);
+	}
 
 
 
