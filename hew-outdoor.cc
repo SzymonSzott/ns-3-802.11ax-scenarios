@@ -15,8 +15,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Authors: Szymon Szott <szott@kt.agh.edu.pl>
- Geovani Teca <tecageovani@gmail.com>
+ * Authors: 
+ * Szymon Szott <szott@kt.agh.edu.pl>
+ * Joanna Czepiec <joanna.czepiec7@gmail.com>
+ * Geovani Teca <tecageovani@gmail.com>
  */
 
 #include "ns3/core-module.h"
@@ -49,7 +51,6 @@ void placeNodes(double **xy,NodeContainer &Nodes); // Place each node in 2D plan
 double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations); //calculate positions of the stations
 void showPosition(NodeContainer &Nodes); // Show AP's positions (only in debug mode)
 void PopulateARPcache ();
-int channelWidth = 20;
 
 /*******  End of all foward declaration of functions *******/
 
@@ -60,12 +61,12 @@ int main (int argc, char *argv[])
 
 	double simulationTime = 10; //seconds
 	bool enableRtsCts = false; // RTS/CTS disabled by default
-	int stations = 50;
-	int layers = 3;
-	bool debug = true;
+	int stations = 50; //Stations per grid
+	int layers = 3; //Layers of hex grid
+	bool debug = false;
 	int h = 65; //distance between AP/2 (radius of hex grid)
-	int APs =  countAPs(layers);
-  std::string phy = "ac";
+	std::string phy = "ac"; //802.11 PHY to use
+	int channelWidth = 20;
 	/* Command line parameters */
 
 	CommandLine cmd;
@@ -73,8 +74,10 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("layers", "Number of layers in hex grid", layers);
 	cmd.AddValue ("debug", "Enable debug mode", debug);
 	cmd.AddValue ("rts", "Enable RTS/CTS", enableRtsCts);
-	cmd.AddValue ("phy", "select PHY layer", phy);
+	cmd.AddValue ("phy", "Select PHY layer", phy);
 	cmd.Parse (argc,argv);
+	
+	
 
 	/* Enable or disable RTS/CTS */
 
@@ -86,13 +89,15 @@ int main (int argc, char *argv[])
 	}
 
 	/* Calculate the number of  APs */
+	
+	int APs =  countAPs(layers);
 
 	if(debug){
 		std::cout << "There are "<< APs << " APs in " << layers << " layers.\n";
 	}
 
-	/* calculate_AP_position function */
-
+	/* Calculate AP positions */
+	
 	double ** APpositions;
 	APpositions = calculateAPpositions(h,layers);
 
@@ -103,7 +108,7 @@ int main (int argc, char *argv[])
 
 	placeNodes(APpositions,wifiApNodes);
 
-	/* Only for TEST purpose */
+	/* Display AP positions */
 
 	if(debug)
 	{
@@ -111,7 +116,7 @@ int main (int argc, char *argv[])
 		showPosition(wifiApNodes);
 	}
 
-	/* POSITION STA */
+	/* Place each station randomly around its AP */
 
 	NodeContainer wifiStaNodes[APs];
 	for(int APindex = 0; APindex < APs; ++APindex)
@@ -124,7 +129,7 @@ int main (int argc, char *argv[])
 
 		placeNodes(STApositions,wifiStaNodes[APindex]);
 
-		/* Only for TEST purpose */
+		/* Display STA positions */
 
 		if(debug)
 		{
@@ -137,37 +142,33 @@ int main (int argc, char *argv[])
 
 	WifiMacHelper wifiMac;
 	WifiHelper wifiHelper;
-  YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default ();
+	YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default ();
 
 	if (phy == "ac"){
-	  wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ac);  //PHY standard
-	  wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue ("VhtMcs9"), "ControlMode", StringValue ("VhtMcs0"), "MaxSlrc", UintegerValue (10));
-    wifiPhy.Set ("ShortGuardEnabled", BooleanValue (true));
-	  channelWidth = 80;
+		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ac);  //PHY standard
+		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue ("VhtMcs9"), "ControlMode", StringValue ("VhtMcs0"), "MaxSlrc", UintegerValue (10));
+		wifiPhy.Set ("ShortGuardEnabled", BooleanValue (true));
+		channelWidth = 80;
 	}
-  else if (phy == "ax"){
-      wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ax_5GHZ);
-			wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager","DataMode", StringValue ("HeMcs11"),"ControlMode", StringValue ("HeMcs0"));
-			wifiPhy.Set ("ShortGuardEnabled", BooleanValue (true));
-		  channelWidth = 80;
+	else if (phy == "ax"){
+		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ax_5GHZ);
+		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager","DataMode", StringValue ("HeMcs11"),"ControlMode", StringValue ("HeMcs0"));
+		wifiPhy.Set ("ShortGuardEnabled", BooleanValue (true));
+		channelWidth = 80;
 	}
 	else if (phy == "n")
 	{
-	/******************************* 802.11n 2.4 GHz *****************/
-
-	    wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211n_5GHZ);
-	    wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
-	                                  "DataMode", StringValue ("HtMcs7"),
-	                                   "ControlMode", StringValue ("HtMcs0"));
-			wifiPhy.Set ("ShortGuardEnabled", BooleanValue (1));
-	    channelWidth = 40;
+		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211n_5GHZ);
+		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
+										"DataMode", StringValue ("HtMcs7"),
+										"ControlMode", StringValue ("HtMcs0"));
+		wifiPhy.Set ("ShortGuardEnabled", BooleanValue (1));
+		channelWidth = 40;
 	}
 	else{
 		std::cout<<"Given PHY doesn't exist or cannot be chosen. Choose one of the following:\n1. n\n2. ac\n3. ax"<<endl;
 		exit(0);
 	}
-
-
 
 	/* Set up Channel */
 
@@ -175,6 +176,8 @@ int main (int argc, char *argv[])
 	wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
 	wifiChannel.AddPropagationLoss ("ns3::TwoRayGroundPropagationLossModel", "Frequency", DoubleValue (5e9));
 
+	/* Set channel width */
+	Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue (channelWidth)); 
 
 
 	/* Configure MAC and PHY */
@@ -212,8 +215,6 @@ int main (int argc, char *argv[])
 	{
 		staDevices[i] = wifiHelper.Install (wifiPhy, wifiMac, wifiStaNodes[i]);
 	}
-
-	Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue (channelWidth)); //set channel width
 
 	/* Configure Internet stack */
 
@@ -295,7 +296,7 @@ void placeNodes(double **xy,NodeContainer &Nodes)
 void showPosition(NodeContainer &Nodes)
 {
 
-	uint32_t NodeNumber = 1;
+	uint32_t NodeNumber = 0;
 
 	for(NodeContainer::Iterator nAP = Nodes.Begin (); nAP != Nodes.End (); ++nAP)
 	{
@@ -447,8 +448,6 @@ double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations) 
 
 	return sta_co;
 }
-
-//Populate ARP cache
 
 void PopulateARPcache ()
 {
