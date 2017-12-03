@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Authors: 
+ * Authors:
  * Szymon Szott <szott@kt.agh.edu.pl>
  * Joanna Czepiec <joanna.czepiec7@gmail.com>
  * Geovani Teca <tecageovani@gmail.com>
@@ -29,6 +29,18 @@
 #include "ns3/propagation-loss-model.h"
 #include "ns3/node-list.h"
 #include "ns3/ipv4-l3-protocol.h"
+
+
+#include "ns3/point-to-point-module.h"
+#include "ns3/network-module.h"
+
+
+#include "ns3/csma-module.h"
+
+#include "ns3/flow-monitor-module.h"
+
+
+
 
 #include <iostream>
 #include <vector>
@@ -49,24 +61,31 @@ int countAPs(int layers); // Count the number of APs per layer
 double **calculateAPpositions(int h, int layers); // Calculate the positions of AP
 void placeNodes(double **xy,NodeContainer &Nodes); // Place each node in 2D plane (X,Y)
 double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations); //calculate positions of the stations
+void installTrafficGenerator(NodeContainer &wifiApNodes, NodeContainer &wifiStaNodes, Ipv4InterfaceContainer &ApInterfaces, Ipv4InterfaceContainer &StaInterfaces);
 void showPosition(NodeContainer &Nodes); // Show AP's positions (only in debug mode)
 void PopulateARPcache ();
 
 /*******  End of all foward declaration of functions *******/
 
+
+double simulationTime = 10; //seconds
+bool enableRtsCts = false; // RTS/CTS disabled by default
+uint32_t stations = 5; //Stations per grid
+int layers = 1; //Layers of hex grid
+bool debug = false;
+int h = 65; //distance between AP/2 (radius of hex grid)
+std::string phy = "ac"; //802.11 PHY to use
+int channelWidth = 20;
+/* Command line parameters */
+
+int APs =  countAPs(layers);
+
+
+
+
 int main (int argc, char *argv[])
 {
 
-	/* Initialize parameters */
-
-	double simulationTime = 10; //seconds
-	bool enableRtsCts = false; // RTS/CTS disabled by default
-	int stations = 50; //Stations per grid
-	int layers = 3; //Layers of hex grid
-	bool debug = false;
-	int h = 65; //distance between AP/2 (radius of hex grid)
-	std::string phy = "ac"; //802.11 PHY to use
-	int channelWidth = 20;
 	/* Command line parameters */
 
 	CommandLine cmd;
@@ -76,8 +95,8 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("rts", "Enable RTS/CTS", enableRtsCts);
 	cmd.AddValue ("phy", "Select PHY layer", phy);
 	cmd.Parse (argc,argv);
-	
-	
+
+
 
 	/* Enable or disable RTS/CTS */
 
@@ -89,15 +108,15 @@ int main (int argc, char *argv[])
 	}
 
 	/* Calculate the number of  APs */
+
 	
-	int APs =  countAPs(layers);
 
 	if(debug){
 		std::cout << "There are "<< APs << " APs in " << layers << " layers.\n";
 	}
 
 	/* Calculate AP positions */
-	
+
 	double ** APpositions;
 	APpositions = calculateAPpositions(h,layers);
 
@@ -177,7 +196,7 @@ int main (int argc, char *argv[])
 	wifiChannel.AddPropagationLoss ("ns3::TwoRayGroundPropagationLossModel", "Frequency", DoubleValue (5e9));
 
 	/* Set channel width */
-	Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue (channelWidth)); 
+	Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue (channelWidth));
 
 
 	/* Configure MAC and PHY */
@@ -227,10 +246,16 @@ int main (int argc, char *argv[])
 
 	Ipv4AddressHelper address;
 	address.SetBase ("10.1.0.0", "255.255.252.0");
-	address.Assign (apDevices);
+
+	Ipv4InterfaceContainer StaInterfaces;
+	Ipv4InterfaceContainer ApInterfaces;
+
+
+	ApInterfaces = address.Assign (apDevices);
+
 	for(int i = 0; i < APs; ++i)
 	{
-		address.Assign (staDevices[i]);
+		StaInterfaces = address.Assign (staDevices[i]);
 	}
 
 	/* PopulateArpCache  */
@@ -238,6 +263,9 @@ int main (int argc, char *argv[])
 	PopulateARPcache ();
 
 	/* Configure applications */
+
+	installTrafficGenerator(wifiApNodes, wifiStaNodes[APs], ApInterfaces, StaInterfaces);
+
 
 	/* Configure tracing */
 
@@ -500,6 +528,27 @@ void PopulateARPcache ()
 	}
 }
 
+void installTrafficGenerator(NodeContainer &wifiApNodes, NodeContainer &wifiStaNodes, Ipv4InterfaceContainer &ApInterfaces, Ipv4InterfaceContainer &StaInterfaces){
 
+UdpServerHelper Server (9);
+ApplicationContainer serverApps = Server.Install (wifiApNodes.Get (0));
+serverApps.Start (Seconds (0.0));
+serverApps.Stop (Seconds (simulationTime + 1));
+
+UdpClientHelper Client (ApInterfaces.GetAddress (0), 9);
+Client.SetAttribute ("MaxPackets", UintegerValue (4294967295u));
+Client.SetAttribute ("Interval", TimeValue (Seconds (0.0002)));
+Client.SetAttribute ("PacketSize", UintegerValue (1472));
+
+ApplicationContainer clientApp [stations];
+
+for(uint32_t iterator = 0 ; iterator < stations; iterator++)
+{
+
+	clientApp[iterator]= Client.Install (wifiStaNodes.Get (iterator));
+	clientApp[iterator].Start (Seconds (1.0 + iterator*0.05));
+	clientApp[iterator].Stop  (Seconds(simulationTime + 1));
+}
+}
 
 /***** End of functions definition *****/
