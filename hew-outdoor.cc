@@ -61,7 +61,7 @@ int countAPs(int layers); // Count the number of APs per layer
 double **calculateAPpositions(int h, int layers); // Calculate the positions of AP
 void placeNodes(double **xy,NodeContainer &Nodes); // Place each node in 2D plane (X,Y)
 double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations); //calculate positions of the stations
-void installTrafficGenerator(NodeContainer &wifiApNodes, NodeContainer &wifiStaNodes, Ipv4InterfaceContainer &ApInterfaces, Ipv4InterfaceContainer &StaInterfaces);
+void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode);
 void showPosition(NodeContainer &Nodes); // Show AP's positions (only in debug mode)
 void PopulateARPcache ();
 
@@ -70,7 +70,7 @@ void PopulateARPcache ();
 
 double simulationTime = 10; //seconds
 bool enableRtsCts = false; // RTS/CTS disabled by default
-uint32_t stations = 5; //Stations per grid
+uint32_t stations = 1; //Stations per grid
 int layers = 1; //Layers of hex grid
 bool debug = false;
 int h = 65; //distance between AP/2 (radius of hex grid)
@@ -91,12 +91,16 @@ int main (int argc, char *argv[])
 	CommandLine cmd;
 	cmd.AddValue ("simulationTime", "Simulation time [s]", simulationTime);
 	cmd.AddValue ("layers", "Number of layers in hex grid", layers);
+	cmd.AddValue ("stations", "Number of stations in each grid", stations);
 	cmd.AddValue ("debug", "Enable debug mode", debug);
 	cmd.AddValue ("rts", "Enable RTS/CTS", enableRtsCts);
 	cmd.AddValue ("phy", "Select PHY layer", phy);
 	cmd.Parse (argc,argv);
 
-
+	if(debug) {
+		LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
+		LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
+	}
 
 	/* Enable or disable RTS/CTS */
 
@@ -131,7 +135,7 @@ int main (int argc, char *argv[])
 
 	if(debug)
 	{
-		cout <<"Show AP's position : "<<endl;
+		cout <<"Show AP's position: "<<endl;
 		showPosition(wifiApNodes);
 	}
 
@@ -179,7 +183,7 @@ int main (int argc, char *argv[])
 	{
 		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211n_5GHZ);
 		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
-										"DataMode", StringValue ("HtMcs7"),
+										"DataMode", StringValue ("HtMcs0"),
 										"ControlMode", StringValue ("HtMcs0"));
 		wifiPhy.Set ("ShortGuardEnabled", BooleanValue (1));
 		channelWidth = 40;
@@ -193,7 +197,7 @@ int main (int argc, char *argv[])
 
 	YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default ();
 	wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
-	wifiChannel.AddPropagationLoss ("ns3::TwoRayGroundPropagationLossModel", "Frequency", DoubleValue (5e9));
+	//wifiChannel.AddPropagationLoss ("ns3::TwoRayGroundPropagationLossModel");
 
 	/* Set channel width */
 	Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue (channelWidth));
@@ -209,8 +213,8 @@ int main (int argc, char *argv[])
 	wifiPhy.Set ("TxGain", DoubleValue (0));
 	wifiPhy.Set ("RxGain", DoubleValue (0));
 	wifiPhy.Set ("RxNoiseFigure", DoubleValue (7));
-	wifiPhy.Set ("CcaMode1Threshold", DoubleValue (-79));
-	wifiPhy.Set ("EnergyDetectionThreshold", DoubleValue (-79 + 3));
+/*	wifiPhy.Set ("CcaMode1Threshold", DoubleValue (-79));
+	wifiPhy.Set ("EnergyDetectionThreshold", DoubleValue (-79 + 3)); */
 	wifiPhy.SetErrorRateModel ("ns3::YansErrorRateModel");
 	wifiPhy.Set ("ShortGuardEnabled", BooleanValue (false));
 
@@ -264,11 +268,13 @@ int main (int argc, char *argv[])
 
 	/* Configure applications */
 
-	installTrafficGenerator(wifiApNodes, wifiStaNodes[APs], ApInterfaces, StaInterfaces);
-
+	installTrafficGenerator(wifiStaNodes[0].Get(0),wifiApNodes.Get(0));
 
 	/* Configure tracing */
 
+	wifiPhy.EnablePcap ("hew-outdoor", apDevices);
+	wifiPhy.EnablePcap ("hew-outdoor", staDevices[0]);
+	
 	//EnablePcap ();
 
 	/* Run simulation */
@@ -528,27 +534,27 @@ void PopulateARPcache ()
 	}
 }
 
-void installTrafficGenerator(NodeContainer &wifiApNodes, NodeContainer &wifiStaNodes, Ipv4InterfaceContainer &ApInterfaces, Ipv4InterfaceContainer &StaInterfaces){
+void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode){
 
 UdpServerHelper Server (9);
-ApplicationContainer serverApps = Server.Install (wifiApNodes.Get (0));
+ApplicationContainer serverApps = Server.Install (toNode);
 serverApps.Start (Seconds (0.0));
 serverApps.Stop (Seconds (simulationTime + 1));
 
-UdpClientHelper Client (ApInterfaces.GetAddress (0), 9);
+Ptr<Ipv4> ipv4 = toNode->GetObject<Ipv4> (); // Get Ipv4 instance of the node
+Ipv4Address addr = ipv4->GetAddress (1, 0).GetLocal (); // Get Ipv4InterfaceAddress of xth interface.
+
+UdpClientHelper Client (addr, 9);
 Client.SetAttribute ("MaxPackets", UintegerValue (4294967295u));
-Client.SetAttribute ("Interval", TimeValue (Seconds (0.0002)));
+Client.SetAttribute ("Interval", TimeValue (Seconds (1)));
 Client.SetAttribute ("PacketSize", UintegerValue (1472));
 
-ApplicationContainer clientApp [stations];
+ApplicationContainer clientApp;
 
-for(uint32_t iterator = 0 ; iterator < stations; iterator++)
-{
+clientApp= Client.Install (fromNode);
+clientApp.Start (Seconds (1.0 + 0.05));
+clientApp.Stop  (Seconds(simulationTime + 1));
 
-	clientApp[iterator]= Client.Install (wifiStaNodes.Get (iterator));
-	clientApp[iterator].Start (Seconds (1.0 + iterator*0.05));
-	clientApp[iterator].Stop  (Seconds(simulationTime + 1));
-}
 }
 
 /***** End of functions definition *****/
