@@ -70,7 +70,7 @@ void PopulateARPcache ();
 
 double simulationTime = 10; //seconds
 bool enableRtsCts = false; // RTS/CTS disabled by default
-uint32_t stations = 1; //Stations per grid
+int stations = 1; //Stations per grid
 int layers = 1; //Layers of hex grid
 bool debug = false;
 int h = 65; //distance between AP/2 (radius of hex grid)
@@ -268,13 +268,17 @@ int main (int argc, char *argv[])
 
 	/* Configure applications */
 
-	installTrafficGenerator(wifiStaNodes[0].Get(0),wifiApNodes.Get(0));
+        for(int i = 0; i < APs; ++i){
+        for(int j = 0; j < stations; ++j)
+	installTrafficGenerator(wifiStaNodes[i].Get(j),wifiApNodes.Get(i));
+        }
+
 
 	/* Configure tracing */
 
 	wifiPhy.EnablePcap ("hew-outdoor", apDevices);
 	wifiPhy.EnablePcap ("hew-outdoor", staDevices[0]);
-	
+
 	//EnablePcap ();
 
 	/* Run simulation */
