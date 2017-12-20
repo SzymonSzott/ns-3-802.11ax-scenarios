@@ -71,12 +71,10 @@ bool debug = false;
 int h = 65; //distance between AP/2 (radius of hex grid)
 std::string phy = "ac"; //802.11 PHY to use
 int channelWidth = 20;
-<<<<<<< HEAD
 bool tracing = false;
-=======
 std::string offeredLoad = "1"; //Mbps
 
->>>>>>> bc157a270c1f9ee424f051deb9909d6796fd2f17
+
 /* Command line parameters */
 
 
