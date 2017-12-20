@@ -41,6 +41,8 @@
 #include <string>
 #include <fstream>
 #include <string> 
+#include <ctime>
+#include <iomanip>
 
 // This is an implementation of the TGax (HEW) outdoor scenario.
 using namespace std;
@@ -69,6 +71,7 @@ bool debug = false;
 int h = 65; //distance between AP/2 (radius of hex grid)
 std::string phy = "ac"; //802.11 PHY to use
 int channelWidth = 20;
+std::string offeredLoad = "1"; //Mbps
 
 /* Command line parameters */
 
@@ -92,7 +95,7 @@ int main (int argc, char *argv[])
 	cmd.Parse (argc,argv);
 
 	int APs =  countAPs(layers);
-	
+
 	if(debug) {
 		LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
 		LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
@@ -216,7 +219,7 @@ int main (int argc, char *argv[])
 
 	NetDeviceContainer apDevices;
 	Ssid ssid;
-	
+
 	for(int i = 0; i < APs; ++i){
 		ssid = Ssid ("hew-outdoor-network-" + std::to_string(i));
 		wifiMac.SetType ("ns3::ApWifiMac","Ssid", SsidValue (ssid));
@@ -230,14 +233,14 @@ int main (int argc, char *argv[])
 	wifiPhy.Set ("TxGain", DoubleValue (-2)); // for STA -2 dBi
 
 	NetDeviceContainer staDevices[APs];
-	
+
 	for(int i = 0; i < APs; ++i) {	
 		ssid = Ssid ("hew-outdoor-network-" + std::to_string(i));
 		wifiMac.SetType ("ns3::StaWifiMac",	"Ssid", SsidValue (ssid),"ActiveProbing", BooleanValue (false));
 		NetDeviceContainer staDevice = wifiHelper.Install (wifiPhy, wifiMac, wifiStaNodes[i]);
 		staDevices[i].Add(staDevice);
 	}
-	
+
 	/* Configure Internet stack */
 
 	InternetStackHelper stack;
@@ -252,12 +255,12 @@ int main (int argc, char *argv[])
 
 	Ipv4InterfaceContainer StaInterfaces;
 	Ipv4InterfaceContainer ApInterfaces;
-	
+
 	ApInterfaces = address.Assign (apDevices);
 
 	for(int i = 0; i < APs; ++i)
 	{
-		
+
 		StaInterfaces = address.Assign (staDevices[i]);
 	}
 
@@ -281,7 +284,8 @@ int main (int argc, char *argv[])
 	wifiPhy.EnablePcap ("hew-outdoor", apDevices);
 	wifiPhy.EnablePcap ("hew-outdoor", staDevices[0]);
 
-	//EnablePcap ();
+	FlowMonitorHelper flowmon;
+	Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
 
 	/* Run simulation */
 
@@ -289,7 +293,38 @@ int main (int argc, char *argv[])
 	Simulator::Run ();
 
 	/* Calculate results */
+	//uint32_t numFlows = stations * APs;
+	double flowThr;
+	double flowDel;
 
+	ofstream myfile;
+	myfile.open ("hew-outdoor.csv", ios::app);  
+
+	//flowmon.SerializeToXmlFile ("adhoc-multihop.xml", false, false);
+	Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmon.GetClassifier ());
+	std::map<FlowId, FlowMonitor::FlowStats> stats = monitor->GetFlowStats ();
+	for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator i = stats.begin (); i != stats.end (); ++i) {
+		auto time = std::time(nullptr); //Get timestamp
+		auto tm = *std::localtime(&time);
+		Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
+		flowThr=i->second.rxBytes * 8.0 / (i->second.timeLastRxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds ()) / 1024 / 1024;
+		flowDel=i->second.delaySum.GetSeconds () / i->second.rxPackets;
+		NS_LOG_UNCOND ("Flow " << i->first  << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\tThroughput: " <<  flowThr  << " Mbps\tTime: " << i->second.timeLastRxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds () << "\t Delay: " << flowDel << " s \n");
+		myfile << std::put_time(&tm, "%Y-%m-%d %H:%M") << "," << offeredLoad << "," << RngSeedManager::GetRun() << "," << t.sourceAddress << "," << t.destinationAddress << "," << flowThr << "," << flowDel;
+		myfile << std::endl;
+	}
+	myfile.close();
+
+	/*
+	//Get timestamp
+	auto t = std::time(nullptr);
+	auto tm = *std::localtime(&t);
+	for(uint32_t i=0;i<numFlows;i++) {
+		myfile << std::put_time(&tm, "%Y-%m-%d %H:%M") << "," << offeredLoad << "," << RngSeedManager::GetRun() << "," << i << "," << flowThr[i] << "," << flowDel[i];
+		myfile << std::endl;
+	}  
+	myfile.close();
+	*/
 
 	/* End of simulation */
 	Simulator::Destroy ();
@@ -298,7 +333,7 @@ int main (int argc, char *argv[])
 
 /***** Functions definition *****/
 
-int countAPs(int layers){
+int countAPs(int layers) {
 	int APsum=1; //if 1 layer then 1 AP
 	if(layers>1)
 	{
@@ -311,8 +346,7 @@ int countAPs(int layers){
 	return APsum;
 }
 
-void placeNodes(double **xy,NodeContainer &Nodes)
-{
+void placeNodes(double **xy,NodeContainer &Nodes) {
 	uint32_t nNodes = Nodes.GetN ();
 	double height = 0.0;
 	MobilityHelper mobility;
@@ -333,8 +367,7 @@ void placeNodes(double **xy,NodeContainer &Nodes)
 	mobility.Install (Nodes);
 }
 
-void showPosition(NodeContainer &Nodes)
-{
+void showPosition(NodeContainer &Nodes) {
 
 	uint32_t NodeNumber = 0;
 
@@ -349,7 +382,7 @@ void showPosition(NodeContainer &Nodes)
 	}
 }
 
-double **calculateAPpositions(int h, int layers){
+double **calculateAPpositions(int h, int layers) {
 
 	float sq=sqrt(3);
 	float first_x=0; // coordinates of the first AP
@@ -489,8 +522,7 @@ double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations) 
 	return sta_co;
 }
 
-void PopulateARPcache ()
-{
+void PopulateARPcache () {
 	Ptr<ArpCache> arp = CreateObject<ArpCache> ();
 	arp->SetAliveTimeout (Seconds (3600 * 24 * 365) );
 
@@ -540,7 +572,7 @@ void PopulateARPcache ()
 	}
 }
 
-void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int port){
+void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int port) {
 
 	UdpServerHelper Server (port);
 	ApplicationContainer serverApps = Server.Install (toNode);
