@@ -55,7 +55,7 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
-/*******  Foward declaration of functions *******/
+/*******  Forward declaration of functions *******/
 
 int countAPs(int layers); // Count the number of APs per layer
 double **calculateAPpositions(int h, int layers); // Calculate the positions of AP
@@ -65,7 +65,7 @@ void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode);
 void showPosition(NodeContainer &Nodes); // Show AP's positions (only in debug mode)
 void PopulateARPcache ();
 
-/*******  End of all foward declaration of functions *******/
+/*******  End of all forward declaration of functions *******/
 
 
 double simulationTime = 10; //seconds
@@ -76,6 +76,7 @@ bool debug = false;
 int h = 65; //distance between AP/2 (radius of hex grid)
 std::string phy = "ac"; //802.11 PHY to use
 int channelWidth = 20;
+bool tracing = false;
 /* Command line parameters */
 
 int APs =  countAPs(layers);
@@ -276,9 +277,11 @@ int main (int argc, char *argv[])
 
 	/* Configure tracing */
 
-	wifiPhy.EnablePcap ("hew-outdoor", apDevices);
-	wifiPhy.EnablePcap ("hew-outdoor", staDevices[0]);
-
+        if(tracing)
+        {
+	 wifiPhy.EnablePcap ("hew-outdoor", apDevices);
+	 wifiPhy.EnablePcap ("hew-outdoor", staDevices[0]);
+        }
 	//EnablePcap ();
 
 	/* Run simulation */
