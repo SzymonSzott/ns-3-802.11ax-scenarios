@@ -71,15 +71,8 @@ bool debug = false;
 int h = 65; //distance between AP/2 (radius of hex grid)
 std::string phy = "ac"; //802.11 PHY to use
 int channelWidth = 20;
-bool tracing = false;
+bool pcap = false;
 std::string offeredLoad = "1"; //Mbps
-
-
-/* Command line parameters */
-
-
-
-
 
 
 int main (int argc, char *argv[])
@@ -94,6 +87,7 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("debug", "Enable debug mode", debug);
 	cmd.AddValue ("rts", "Enable RTS/CTS", enableRtsCts);
 	cmd.AddValue ("phy", "Select PHY layer", phy);
+	cmd.AddValue ("pcap", "Enable PCAP generation", pcap);
 	cmd.Parse (argc,argv);
 
 	int APs =  countAPs(layers);
@@ -169,7 +163,7 @@ int main (int argc, char *argv[])
 	YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default ();
 
 	if (phy == "ac"){
-		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ac);  //PHY standard
+		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ac); 
 		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue ("VhtMcs9"), "ControlMode", StringValue ("VhtMcs0"), "MaxSlrc", UintegerValue (10));
 		wifiPhy.Set ("ShortGuardEnabled", BooleanValue (true));
 		channelWidth = 80;
@@ -189,7 +183,7 @@ int main (int argc, char *argv[])
 		wifiPhy.Set ("ShortGuardEnabled", BooleanValue (1));
 		channelWidth = 40;
 	}
-	else{
+	else {
 		std::cout<<"Given PHY doesn't exist or cannot be chosen. Choose one of the following:\n1. n\n2. ac\n3. ax"<<endl;
 		exit(0);
 	}
@@ -222,7 +216,7 @@ int main (int argc, char *argv[])
 	NetDeviceContainer apDevices;
 	Ssid ssid;
 
-	for(int i = 0; i < APs; ++i){
+	for(int i = 0; i < APs; ++i) {
 		ssid = Ssid ("hew-outdoor-network-" + std::to_string(i));
 		wifiMac.SetType ("ns3::ApWifiMac","Ssid", SsidValue (ssid));
 		NetDeviceContainer apDevice = wifiHelper.Install (wifiPhy, wifiMac, wifiApNodes.Get(i));
@@ -275,21 +269,20 @@ int main (int argc, char *argv[])
 	int port=9;
 	for(int i = 0; i < APs; ++i){
 		for(int j = 0; j < stations; ++j)
-			installTrafficGenerator(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++);
+			installTrafficGenerator(wifiStaNodes[i].Get(j), wifiApNodes.Get(i), port++);
 	}
 
-	//installTrafficGenerator(wifiStaNodes[0].Get(0),wifiApNodes.Get(0),9);
-	//installTrafficGenerator(wifiStaNodes[0].Get(1),wifiApNodes.Get(0));
 
 	/* Configure tracing */
 
-        //EnablePcap ();
+    //EnablePcap ();
 
-        if(tracing)
-        {
-	 wifiPhy.EnablePcap ("hew-outdoor", apDevices);
-	 wifiPhy.EnablePcap ("hew-outdoor", staDevices[0]);
-        }
+    if(pcap) {
+		wifiPhy.EnablePcap ("hew-outdoor", apDevices);
+		for(int i = 0; i < APs; ++i){
+			wifiPhy.EnablePcap ("hew-outdoor", staDevices[i]);
+		}
+	}
 
 	FlowMonitorHelper flowmon;
 	Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
@@ -300,14 +293,12 @@ int main (int argc, char *argv[])
 	Simulator::Run ();
 
 	/* Calculate results */
-	//uint32_t numFlows = stations * APs;
 	double flowThr;
 	double flowDel;
 
 	ofstream myfile;
 	myfile.open ("hew-outdoor.csv", ios::app);  
 
-	//flowmon.SerializeToXmlFile ("adhoc-multihop.xml", false, false);
 	Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmon.GetClassifier ());
 	std::map<FlowId, FlowMonitor::FlowStats> stats = monitor->GetFlowStats ();
 	for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator i = stats.begin (); i != stats.end (); ++i) {
@@ -321,17 +312,6 @@ int main (int argc, char *argv[])
 		myfile << std::endl;
 	}
 	myfile.close();
-
-	/*
-	//Get timestamp
-	auto t = std::time(nullptr);
-	auto tm = *std::localtime(&t);
-	for(uint32_t i=0;i<numFlows;i++) {
-		myfile << std::put_time(&tm, "%Y-%m-%d %H:%M") << "," << offeredLoad << "," << RngSeedManager::GetRun() << "," << i << "," << flowThr[i] << "," << flowDel[i];
-		myfile << std::endl;
-	}  
-	myfile.close();
-	*/
 
 	/* End of simulation */
 	Simulator::Destroy ();
