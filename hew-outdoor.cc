@@ -33,14 +33,14 @@
 #include "ns3/network-module.h"
 #include "ns3/csma-module.h"
 #include "ns3/flow-monitor-module.h"
-
+#include "ns3/ipv4-address.h"
 
 #include <iostream>
 #include <vector>
 #include <math.h>
 #include <string>
 #include <fstream>
-#include <string> 
+#include <string>
 #include <ctime>
 #include <iomanip>
 
@@ -65,14 +65,18 @@ void PopulateARPcache ();
 
 double simulationTime = 10; //seconds
 bool enableRtsCts = false; // RTS/CTS disabled by default
-int stations = 1; //Stations per grid
+int stations = 5; //Stations per grid
 int layers = 1; //Layers of hex grid
 bool debug = false;
 int h = 65; //distance between AP/2 (radius of hex grid)
 std::string phy = "ac"; //802.11 PHY to use
 int channelWidth = 20;
-bool pcap = false;
+bool tracing = false;
 std::string offeredLoad = "1"; //Mbps
+uint8_t tosValue = 0x70; //AC_BE
+
+/* Command line parameters */
+
 
 
 int main (int argc, char *argv[])
@@ -87,7 +91,6 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("debug", "Enable debug mode", debug);
 	cmd.AddValue ("rts", "Enable RTS/CTS", enableRtsCts);
 	cmd.AddValue ("phy", "Select PHY layer", phy);
-	cmd.AddValue ("pcap", "Enable PCAP generation", pcap);
 	cmd.Parse (argc,argv);
 
 	int APs =  countAPs(layers);
@@ -163,7 +166,7 @@ int main (int argc, char *argv[])
 	YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default ();
 
 	if (phy == "ac"){
-		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ac); 
+		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ac);  //PHY standard
 		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue ("VhtMcs9"), "ControlMode", StringValue ("VhtMcs0"), "MaxSlrc", UintegerValue (10));
 		wifiPhy.Set ("ShortGuardEnabled", BooleanValue (true));
 		channelWidth = 80;
@@ -183,7 +186,7 @@ int main (int argc, char *argv[])
 		wifiPhy.Set ("ShortGuardEnabled", BooleanValue (1));
 		channelWidth = 40;
 	}
-	else {
+	else{
 		std::cout<<"Given PHY doesn't exist or cannot be chosen. Choose one of the following:\n1. n\n2. ac\n3. ax"<<endl;
 		exit(0);
 	}
@@ -216,7 +219,7 @@ int main (int argc, char *argv[])
 	NetDeviceContainer apDevices;
 	Ssid ssid;
 
-	for(int i = 0; i < APs; ++i) {
+	for(int i = 0; i < APs; ++i){
 		ssid = Ssid ("hew-outdoor-network-" + std::to_string(i));
 		wifiMac.SetType ("ns3::ApWifiMac","Ssid", SsidValue (ssid));
 		NetDeviceContainer apDevice = wifiHelper.Install (wifiPhy, wifiMac, wifiApNodes.Get(i));
@@ -230,7 +233,7 @@ int main (int argc, char *argv[])
 
 	NetDeviceContainer staDevices[APs];
 
-	for(int i = 0; i < APs; ++i) {	
+	for(int i = 0; i < APs; ++i) {
 		ssid = Ssid ("hew-outdoor-network-" + std::to_string(i));
 		wifiMac.SetType ("ns3::StaWifiMac",	"Ssid", SsidValue (ssid),"ActiveProbing", BooleanValue (false));
 		NetDeviceContainer staDevice = wifiHelper.Install (wifiPhy, wifiMac, wifiStaNodes[i]);
@@ -246,43 +249,58 @@ int main (int argc, char *argv[])
 		stack.Install (wifiStaNodes[i]);
 	}
 
-	Ipv4AddressHelper address;
-	address.SetBase ("10.1.0.0", "255.255.252.0");
+	// Ipv4AddressHelper address;
+	// address.SetBase ("10.1.0.0", "255.255.252.0");
+	//
+	// Ipv4InterfaceContainer StaInterfaces;
+	// Ipv4InterfaceContainer ApInterfaces;
+	//
+	// ApInterfaces = address.Assign (apDevices);
+	//
+	// for(int i = 0; i < APs; ++i)
+	// {
+	//
+	// 	StaInterfaces = address.Assign (staDevices[i]);
+	// }
 
-	Ipv4InterfaceContainer StaInterfaces;
-	Ipv4InterfaceContainer ApInterfaces;
 
-	ApInterfaces = address.Assign (apDevices);
 
-	for(int i = 0; i < APs; ++i)
-	{
+  Ipv4AddressHelper address;
 
-		StaInterfaces = address.Assign (staDevices[i]);
-	}
+  for(int i = 0; i < APs; ++i)
+  {
+	std::string addrString;
+	addrString =  "10.1." + to_string(i) + ".0";
+	const char *cstr = addrString.c_str(); //convert to constant char
+	address.SetBase (Ipv4Address(cstr), "255.255.252.0");
+	address.Assign (apDevices.Get(i));
+	address.Assign (staDevices[i]);
+  }
 
 	/* PopulateArpCache  */
 
 	PopulateARPcache ();
 
 	/* Configure applications */
-
+  tosValue = 0x70; //AC_BE
 	int port=9;
 	for(int i = 0; i < APs; ++i){
 		for(int j = 0; j < stations; ++j)
-			installTrafficGenerator(wifiStaNodes[i].Get(j), wifiApNodes.Get(i), port++);
+			installTrafficGenerator(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++);
 	}
 
+	//installTrafficGenerator(wifiStaNodes[0].Get(0),wifiApNodes.Get(0),9);
+	//installTrafficGenerator(wifiStaNodes[0].Get(1),wifiApNodes.Get(0));
 
 	/* Configure tracing */
 
-    //EnablePcap ();
+        //EnablePcap ();
 
-    if(pcap) {
-		wifiPhy.EnablePcap ("hew-outdoor", apDevices);
-		for(int i = 0; i < APs; ++i){
-			wifiPhy.EnablePcap ("hew-outdoor", staDevices[i]);
-		}
-	}
+        if(tracing)
+        {
+	 wifiPhy.EnablePcap ("hew-outdoor", apDevices);
+	 wifiPhy.EnablePcap ("hew-outdoor", staDevices[0]);
+        }
 
 	FlowMonitorHelper flowmon;
 	Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
@@ -293,12 +311,14 @@ int main (int argc, char *argv[])
 	Simulator::Run ();
 
 	/* Calculate results */
+	//uint32_t numFlows = stations * APs;
 	double flowThr;
 	double flowDel;
 
 	ofstream myfile;
-	myfile.open ("hew-outdoor.csv", ios::app);  
+	myfile.open ("hew-outdoor.csv", ios::app);
 
+	//flowmon.SerializeToXmlFile ("adhoc-multihop.xml", false, false);
 	Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmon.GetClassifier ());
 	std::map<FlowId, FlowMonitor::FlowStats> stats = monitor->GetFlowStats ();
 	for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator i = stats.begin (); i != stats.end (); ++i) {
@@ -312,6 +332,17 @@ int main (int argc, char *argv[])
 		myfile << std::endl;
 	}
 	myfile.close();
+
+	/*
+	//Get timestamp
+	auto t = std::time(nullptr);
+	auto tm = *std::localtime(&t);
+	for(uint32_t i=0;i<numFlows;i++) {
+		myfile << std::put_time(&tm, "%Y-%m-%d %H:%M") << "," << offeredLoad << "," << RngSeedManager::GetRun() << "," << i << "," << flowThr[i] << "," << flowDel[i];
+		myfile << std::endl;
+	}
+	myfile.close();
+	*/
 
 	/* End of simulation */
 	Simulator::Destroy ();
@@ -561,24 +592,50 @@ void PopulateARPcache () {
 
 void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int port) {
 
-	UdpServerHelper Server (port);
-	ApplicationContainer serverApps = Server.Install (toNode);
-	serverApps.Start (Seconds (0.0));
-	serverApps.Stop (Seconds (simulationTime + 1));
-
 	Ptr<Ipv4> ipv4 = toNode->GetObject<Ipv4> (); // Get Ipv4 instance of the node
 	Ipv4Address addr = ipv4->GetAddress (1, 0).GetLocal (); // Get Ipv4InterfaceAddress of xth interface.
 
-	UdpClientHelper Client (addr, port);
-	Client.SetAttribute ("MaxPackets", UintegerValue (1));
-	Client.SetAttribute ("Interval", TimeValue (Seconds (1)));
-	Client.SetAttribute ("PacketSize", UintegerValue (1472));
+	// UdpServerHelper Server (port);
+	// ApplicationContainer serverApps = Server.Install (toNode);
+	// serverApps.Start (Seconds (0.0));
+	// serverApps.Stop (Seconds (simulationTime + 1));
 
-	ApplicationContainer clientApp;
+	// UdpClientHelper Client (addr, port);
+	// Client.SetAttribute ("MaxPackets", UintegerValue (1));
+	// Client.SetAttribute ("Interval", TimeValue (Seconds (1)));
+	// Client.SetAttribute ("PacketSize", UintegerValue (1472));
+	//
+	// ApplicationContainer clientApp;
+	//
+	// clientApp= Client.Install (fromNode);
+	// clientApp.Start (Seconds (1.0 + port * 0.05));
+	// clientApp.Stop  (Seconds(simulationTime + 1));
 
-	clientApp= Client.Install (fromNode);
-	clientApp.Start (Seconds (1.0 + port * 0.05));
-	clientApp.Stop  (Seconds(simulationTime + 1));
+  ApplicationContainer sourceApplications, sinkApplications;
+
+//  uint8_t tosValue = 0x70; //AC_BE
+	std::string offeredLoad = "1"; //Mbps
+
+  InetSocketAddress sinkSocket (addr, port);
+  sinkSocket.SetTos (tosValue);
+  OnOffHelper onOffHelper ("ns3::UdpSocketFactory", sinkSocket);
+  onOffHelper.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
+  onOffHelper.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
+  onOffHelper.SetAttribute ("DataRate", DataRateValue (DataRate (offeredLoad + "Mbps")));
+  onOffHelper.SetAttribute ("PacketSize", UintegerValue (1472)); //bytes
+  onOffHelper.SetAttribute ("StartTime", TimeValue(Seconds (simulationTime)));
+  onOffHelper.SetAttribute ("StopTime", TimeValue(Seconds (simulationTime + 1)));//correct ?
+  sourceApplications.Add (onOffHelper.Install (fromNode)); //fromNode
+  PacketSinkHelper packetSinkHelper ("ns3::UdpSocketFactory", sinkSocket);
+  sinkApplications.Add (packetSinkHelper.Install (toNode)); //toNode
+
+	sinkApplications.Start (Seconds (0.0));
+	sinkApplications.Stop (Seconds (simulationTime + 1));
+	sourceApplications.Start (Seconds (1.0));
+	sourceApplications.Stop (Seconds (simulationTime + 1));
+
+
+
 
 }
 
