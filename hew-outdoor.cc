@@ -16,7 +16,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  * Authors:
- *  Szymon Szott <szott@kt.agh.edu.pl>
+ * Szymon Szott <szott@kt.agh.edu.pl>
  * Joanna Czepiec <joanna.czepiec7@gmail.com>
  * Geovani Teca <tecageovani@gmail.com>
  */
@@ -28,13 +28,13 @@
 #include "ns3/internet-module.h"
 #include "ns3/propagation-loss-model.h"
 #include "ns3/node-list.h"
-# include "ns3/ipv4-l3-protocol.h"
+#include "ns3/ipv4-l3-protocol.h"
 #include "ns3/point-to-point-module.h"
 #include "ns3/network-module.h"
 #include "ns3/csma-module.h"
 #include "ns3/flow-monitor-module.h"
 #include "ns3/ipv4-address.h"
- 
+
 #include <iostream>
 #include <vector>
 #include <math.h>
@@ -67,9 +67,9 @@ double simulationTime = 10; //seconds
 int main (int argc, char *argv[])
 {
 
-       /* Variable declaration zone */
+	/* Variable declarations */
 
-       	bool enableRtsCts = false; // RTS/CTS disabled by default
+	bool enableRtsCts = false; // RTS/CTS disabled by default
 	int stations = 5; //Stations per grid
 	int layers = 1; //Layers of hex grid
 	bool debug = false;
@@ -78,7 +78,7 @@ int main (int argc, char *argv[])
 	int channelWidth = 20;
 	bool pcap = false;
 	string offeredLoad = "1"; //Mbps
-	bool highMcs = true;
+	bool highMcs = true; //Use of high MCS settings
 	string mcs;
 
 
@@ -91,8 +91,8 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("debug", "Enable debug mode", debug);
 	cmd.AddValue ("rts", "Enable RTS/CTS", enableRtsCts);
 	cmd.AddValue ("phy", "Select PHY layer", phy);
-        cmd.AddValue ("mcs", "Select msc parameter", mcs);
- 	cmd.AddValue ("pcap", "Enable PCAP generation", pcap);
+	cmd.AddValue ("highMcs", "Select high or low MCS settings", highMcs);
+	cmd.AddValue ("pcap", "Enable PCAP generation", pcap);
 	cmd.Parse (argc,argv);
 
 	int APs =  countAPs(layers);
@@ -104,16 +104,14 @@ int main (int argc, char *argv[])
 
 	/* Enable or disable RTS/CTS */
 
- 	if (enableRtsCts) {
+	if (enableRtsCts) {
 		Config::SetDefault("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue ("100"));
 	}
 	else {
 		Config::SetDefault("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue ("1100000"));
 	}
- 
+
 	/* Calculate the number of  APs */
-
-
 
 	if(debug){
 		std::cout << "There are "<< APs << " APs in " << layers << " layers.\n";
@@ -128,19 +126,19 @@ int main (int argc, char *argv[])
 	wifiApNodes.Create(APs);
 
 	/* Place each AP in 3D (X,Y,Z) plane */
-           
+
 	placeNodes(APpositions,wifiApNodes);
 
 	/* Display AP positions */
 
 	if(debug)
-     	{
+	{
 		cout << "Show AP's position: "<< endl;
 		showPosition(wifiApNodes);
 	}
 
 	/* Place each station randomly around its AP */
-    
+
 	NodeContainer wifiStaNodes[APs];
 	for(int APindex = 0; APindex < APs; ++APindex)
 	{
@@ -152,7 +150,7 @@ int main (int argc, char *argv[])
 
 		placeNodes(STApositions,wifiStaNodes[APindex]);
 
-		/* Displ ay STA positions */
+		/* Display STA positions */
 
 		if(debug)
 		{
@@ -168,28 +166,28 @@ int main (int argc, char *argv[])
 	YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default ();
 
 	if (phy == "ac"){
-              if(highMcs == 1)
-                 {
-                   mcs ="VhtMcs9";
-                 }
-              else
-                 {
-                   mcs ="VhtMcs0";
-                 }
+		if(highMcs == 1)
+		{
+			mcs ="VhtMcs9";
+		}
+		else
+		{
+			mcs ="VhtMcs0";
+		}
 		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ac);
 		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue (mcs), "ControlMode", StringValue (mcs), "MaxSlrc", UintegerValue (10));
 		wifiPhy.Set ("ShortGuardEnabled", BooleanValue (true));
 		channelWidth = 80;
 	}
 	else if (phy == "ax"){
-                if(highMcs == 1)
-                 {
-                   mcs ="HeMcs11";
-                 }
-              else
-                 {
-                   mcs ="HeMcs0";
-                 }
+		if(highMcs == 1)
+		{
+			mcs ="HeMcs11";
+		}
+		else
+		{
+			mcs ="HeMcs0";
+		}
 
 		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ax_5GHZ);
 		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager","DataMode", StringValue (mcs),"ControlMode", StringValue (mcs));
@@ -198,10 +196,18 @@ int main (int argc, char *argv[])
 	}
 	else if (phy == "n")
 	{
+		if(highMcs == 1)
+		{
+			mcs ="HtMcs7";
+		}
+		else
+		{
+			mcs ="HtMcs0";
+		}		
 		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211n_5GHZ);
 		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
-				"DataMode", StringValue ("HtMcs0"),
-				"ControlMode", StringValue ("HtMcs0"));
+				"DataMode", StringValue (mcs),
+				"ControlMode", StringValue (mcs));
 		wifiPhy.Set ("ShortGuardEnabled", BooleanValue (1));
 		channelWidth = 40;
 	}
