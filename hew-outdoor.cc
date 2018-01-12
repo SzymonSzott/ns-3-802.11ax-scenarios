@@ -22,7 +22,7 @@
  */
 
 #include "ns3/core-module.h"
-#i nclude "ns3/applications-module.h"
+#include "ns3/applications-module.h"
 #include "ns3/wifi-module.h"
 #include "ns3/mobility-module.h"
 #include "ns3/internet-module.h"
@@ -62,22 +62,25 @@ void PopulateARPcache ();
 
 /*******  End of all forward declaration of functions *******/
 
-
 double simulationTime = 10; //seconds
-bool enableRtsCts = false; // RTS/CTS disabled by default
-int stations = 5; //Stations per grid
-int layers = 1; //Layers of hex grid
-bool debug = false;
-int h = 65; //distance between AP/2 (radius of hex grid)
-string phy = "ac"; //802.11 PHY to use
-int channelWidth = 20;
-bool pcap = false;
-string offeredLoad = "1"; //Mbps
-uint8_t tosValue = 0x70; //AC_BE
-bool highMcs = true;
 
-i nt main (int argc, char *argv[])
+int main (int argc, char *argv[])
 {
+
+       /* Variable declaration zone */
+
+       	bool enableRtsCts = false; // RTS/CTS disabled by default
+	int stations = 5; //Stations per grid
+	int layers = 1; //Layers of hex grid
+	bool debug = false;
+	int h = 65; //distance between AP/2 (radius of hex grid)
+	string phy = "ac"; //802.11 PHY to use
+	int channelWidth = 20;
+	bool pcap = false;
+	string offeredLoad = "1"; //Mbps
+	bool highMcs = true;
+	string mcs;
+
 
 	/* Command line parameters */
 
@@ -88,6 +91,7 @@ i nt main (int argc, char *argv[])
 	cmd.AddValue ("debug", "Enable debug mode", debug);
 	cmd.AddValue ("rts", "Enable RTS/CTS", enableRtsCts);
 	cmd.AddValue ("phy", "Select PHY layer", phy);
+        cmd.AddValue ("mcs", "Select msc parameter", mcs);
  	cmd.AddValue ("pcap", "Enable PCAP generation", pcap);
 	cmd.Parse (argc,argv);
 
@@ -118,7 +122,7 @@ i nt main (int argc, char *argv[])
 	/* Calculate AP positions */
 
 	double ** APpositions;
-	APp ositions = calculateAPpositions(h,layers);
+	APpositions = calculateAPpositions(h,layers);
 
 	NodeContainer wifiApNodes ;
 	wifiApNodes.Create(APs);
@@ -142,7 +146,7 @@ i nt main (int argc, char *argv[])
 	{
 		wifiStaNodes[APindex].Create(stations);
 		double **STApositions;
-		STApositi   ons = calculateSTApositions(APpositions[0][APindex], APpositions[1][APindex], h, stations);
+		STApositions = calculateSTApositions(APpositions[0][APindex], APpositions[1][APindex], h, stations);
 
 		/* Place each stations in 3D (X,Y,Z) plane */
 
@@ -166,11 +170,11 @@ i nt main (int argc, char *argv[])
 	if (phy == "ac"){
               if(highMcs == 1)
                  {
-                   string mcs ="VhtMcs9"
+                   mcs ="VhtMcs9";
                  }
               else
                  {
-                   string mcs ="VhtMcs0"
+                   mcs ="VhtMcs0";
                  }
 		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ac);
 		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue (mcs), "ControlMode", StringValue (mcs), "MaxSlrc", UintegerValue (10));
@@ -180,11 +184,11 @@ i nt main (int argc, char *argv[])
 	else if (phy == "ax"){
                 if(highMcs == 1)
                  {
-                   string mcs ="HeMcs11"
+                   mcs ="HeMcs11";
                  }
               else
                  {
-                   string mcs ="HeMcs0"
+                   mcs ="HeMcs0";
                  }
 
 		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ax_5GHZ);
@@ -297,7 +301,7 @@ i nt main (int argc, char *argv[])
 	PopulateARPcache ();
 
 	/* Configure applications */
-	tosValue = 0x70; //AC_BE
+
 	int port=9;
 	for(int i = 0; i < APs; ++i){
 		for(int j = 0; j < stations; ++j)
@@ -321,7 +325,7 @@ i nt main (int argc, char *argv[])
 
 	/* Run simulation */
 
-	Simulator::Stop (Seconds (simulationTime));
+	Simulator::Stop(Seconds(simulationTime));
 	Simulator::Run ();
 
 	/* Calculate results */
@@ -615,7 +619,7 @@ void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int
 
 	ApplicationContainer sourceApplications, sinkApplications;
 
-	//  uint8_t tosValue = 0x70; //AC_BE
+	uint8_t tosValue = 0x70; //AC_BE
 	std::string offeredLoad = "1"; //Mbps
 
 	InetSocketAddress sinkSocket (addr, port);
