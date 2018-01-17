@@ -40,7 +40,7 @@
 #include <math.h>
 #include <string>
 #include <fstream>
-#include <string> 
+#include <string>
 #include <ctime>
 #include <iomanip>
 
@@ -56,13 +56,13 @@ int countAPs(int layers); // Count the number of APs per layer
 double **calculateAPpositions(int h, int layers); // Calculate the positions of AP
 void placeNodes(double **xy,NodeContainer &Nodes); // Place each node in 2D plane (X,Y)
 double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations); //calculate positions of the stations
-void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int port);
+void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int port, std::string offeredLoad, int packetSize, int simulationTime, int warmupTime );
 void showPosition(NodeContainer &Nodes); // Show AP's positions (only in debug mode)
 void PopulateARPcache ();
 
 /*******  End of all forward declaration of functions *******/
 
-double simulationTime = 10; //seconds
+
 
 int main (int argc, char *argv[])
 {
@@ -77,11 +77,13 @@ int main (int argc, char *argv[])
 	string phy = "ac"; //802.11 PHY to use
 	int channelWidth = 20;
 	bool pcap = false;
-	string offeredLoad = "1"; //Mbps
+	//string offeredLoad = "1"; //Mbps
 	bool highMcs = true; //Use of high MCS settings
 	string mcs;
-
-
+  std::string offeredLoad = "1"; //Mbps
+	int simulationTime = 10;
+	int warmupTime = 1;
+	int packetSize = 1472;
 	/* Command line parameters */
 
 	CommandLine cmd;
@@ -93,6 +95,9 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("phy", "Select PHY layer", phy);
 	cmd.AddValue ("highMcs", "Select high or low MCS settings", highMcs);
 	cmd.AddValue ("pcap", "Enable PCAP generation", pcap);
+	cmd.AddValue ("offeredLoad", "Offered Load [Mbps]", offeredLoad);
+	cmd.AddValue ("packetSize", "packetSize", packetSize);
+	cmd.AddValue ("warmupTime", "Warm up time ", warmupTime);
 	cmd.Parse (argc,argv);
 
 	int APs =  countAPs(layers);
@@ -203,7 +208,7 @@ int main (int argc, char *argv[])
 		else
 		{
 			mcs ="HtMcs0";
-		}		
+		}
 		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211n_5GHZ);
 		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
 				"DataMode", StringValue (mcs),
@@ -258,7 +263,7 @@ int main (int argc, char *argv[])
 
 	NetDeviceContainer staDevices[APs];
 
-	for(int i = 0; i < APs; ++i) {	
+	for(int i = 0; i < APs; ++i) {
 		ssid = Ssid ("hew-outdoor-network-" + std::to_string(i));
 		wifiMac.SetType ("ns3::StaWifiMac",	"Ssid", SsidValue (ssid),"ActiveProbing", BooleanValue (false));
 		NetDeviceContainer staDevice = wifiHelper.Install (wifiPhy, wifiMac, wifiStaNodes[i]);
@@ -311,7 +316,7 @@ int main (int argc, char *argv[])
 	int port=9;
 	for(int i = 0; i < APs; ++i){
 		for(int j = 0; j < stations; ++j)
-			installTrafficGenerator(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++);
+			installTrafficGenerator(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, offeredLoad, packetSize, simulationTime, warmupTime);
 	}
 
 
@@ -602,7 +607,7 @@ void PopulateARPcache () {
 	}
 }
 
-void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int port) {
+void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int port, std::string offeredLoad, int packetSize, int simulationTime, int warmupTime ) {
 
 	Ptr<Ipv4> ipv4 = toNode->GetObject<Ipv4> (); // Get Ipv4 instance of the node
 	Ipv4Address addr = ipv4->GetAddress (1, 0).GetLocal (); // Get Ipv4InterfaceAddress of xth interface.
@@ -626,12 +631,12 @@ void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int
 	ApplicationContainer sourceApplications, sinkApplications;
 
 	uint8_t tosValue = 0x70; //AC_BE
-	std::string offeredLoad = "1"; //Mbps
+
 
 	InetSocketAddress sinkSocket (addr, port);
 	sinkSocket.SetTos (tosValue);
 	OnOffHelper onOffHelper ("ns3::UdpSocketFactory", sinkSocket);
-	onOffHelper.SetConstantRate (DataRate (offeredLoad + "Mbps"), 1472);
+	onOffHelper.SetConstantRate (DataRate (offeredLoad + "Mbps"), packetSize);
 	//onOffHelper.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
 	//onOffHelper.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
 	//onOffHelper.SetAttribute ("DataRate", DataRateValue (DataRate (offeredLoad + "Mbps")));
