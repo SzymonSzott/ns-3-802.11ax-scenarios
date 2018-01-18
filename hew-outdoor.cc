@@ -56,7 +56,7 @@ int countAPs(int layers); // Count the number of APs per layer
 double **calculateAPpositions(int h, int layers); // Calculate the positions of AP
 void placeNodes(double **xy,NodeContainer &Nodes); // Place each node in 2D plane (X,Y)
 double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations); //calculate positions of the stations
-void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int port, std::string offeredLoad, int packetSize, int simulationTime, int warmupTime );
+void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int port, std::string offeredLoad, int packetSize, int simulationTime, int warmupTime);
 void showPosition(NodeContainer &Nodes); // Show AP's positions (only in debug mode)
 void PopulateARPcache ();
 
@@ -96,8 +96,8 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("highMcs", "Select high or low MCS settings", highMcs);
 	cmd.AddValue ("pcap", "Enable PCAP generation", pcap);
 	cmd.AddValue ("offeredLoad", "Offered Load [Mbps]", offeredLoad);
-	cmd.AddValue ("packetSize", "packetSize", packetSize);
-	cmd.AddValue ("warmupTime", "Warm up time ", warmupTime);
+	cmd.AddValue ("packetSize", "Packet size [s]", packetSize);
+	cmd.AddValue ("warmupTime", "Warm-up time [s]", warmupTime);
 	cmd.Parse (argc,argv);
 
 	int APs =  countAPs(layers);
@@ -524,7 +524,6 @@ double **calculateAPpositions(int h, int layers) {
 
 double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations) {
 
-	srand(time(NULL));
 	double PI  =3.141592653589793238463;
 
 
@@ -612,45 +611,22 @@ void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int
 	Ptr<Ipv4> ipv4 = toNode->GetObject<Ipv4> (); // Get Ipv4 instance of the node
 	Ipv4Address addr = ipv4->GetAddress (1, 0).GetLocal (); // Get Ipv4InterfaceAddress of xth interface.
 
-	// UdpServerHelper Server (port);
-	// ApplicationContainer serverApps = Server.Install (toNode);
-	// serverApps.Start (Seconds (0.0));
-	// serverApps.Stop (Seconds (simulationTime + 1));
-
-	// UdpClientHelper Client (addr, port);
-	// Client.SetAttribute ("MaxPackets", UintegerValue (1));
-	// Client.SetAttribute ("Interval", TimeValue (Seconds (1)));
-	// Client.SetAttribute ("PacketSize", UintegerValue (1472));
-	//
-	// ApplicationContainer clientApp;
-	//
-	// clientApp= Client.Install (fromNode);
-	// clientApp.Start (Seconds (1.0 + port * 0.05));
-	// clientApp.Stop  (Seconds(simulationTime + 1));
-
 	ApplicationContainer sourceApplications, sinkApplications;
 
 	uint8_t tosValue = 0x70; //AC_BE
-
 
 	InetSocketAddress sinkSocket (addr, port);
 	sinkSocket.SetTos (tosValue);
 	OnOffHelper onOffHelper ("ns3::UdpSocketFactory", sinkSocket);
 	onOffHelper.SetConstantRate (DataRate (offeredLoad + "Mbps"), packetSize);
-	//onOffHelper.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
-	//onOffHelper.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
-	//onOffHelper.SetAttribute ("DataRate", DataRateValue (DataRate (offeredLoad + "Mbps")));
-	//onOffHelper.SetAttribute ("PacketSize", UintegerValue (1472)); //bytes
-	//onOffHelper.SetAttribute ("StartTime", TimeValue(Seconds (1)));
-	//onOffHelper.SetAttribute ("StopTime", TimeValue(Seconds (simulationTime + 1)));//correct ?
 	sourceApplications.Add (onOffHelper.Install (fromNode)); //fromNode
 	PacketSinkHelper packetSinkHelper ("ns3::UdpSocketFactory", sinkSocket);
 	sinkApplications.Add (packetSinkHelper.Install (toNode)); //toNode
 
-	sinkApplications.Start (Seconds (0.0));
-	sinkApplications.Stop (Seconds (simulationTime + 1));
-	sourceApplications.Start (Seconds (1.0));
-	sourceApplications.Stop (Seconds (simulationTime + 1));
+	sinkApplications.Start (Seconds (warmupTime));
+	sinkApplications.Stop (Seconds (simulationTime));
+	sourceApplications.Start (Seconds (warmupTime));
+	sourceApplications.Stop (Seconds (simulationTime));
 
 
 
