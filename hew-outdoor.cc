@@ -62,8 +62,6 @@ void PopulateARPcache ();
 
 /*******  End of all forward declaration of functions *******/
 
-
-
 int main (int argc, char *argv[])
 {
 
