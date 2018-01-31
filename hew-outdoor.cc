@@ -64,7 +64,6 @@ void PopulateARPcache ();
 
 int main (int argc, char *argv[])
 {
-
 	/* Variable declarations */
 
 	bool enableRtsCts = false; // RTS/CTS disabled by default
