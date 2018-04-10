@@ -178,7 +178,7 @@ int main (int argc, char *argv[])
 		}
 		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ac);
 		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue (mcs), "ControlMode", StringValue (mcs), "MaxSlrc", UintegerValue (10));
-		wifiPhy.Set ("ShortGuardEnabled", BooleanValue (true));
+
 		channelWidth = 80;
 	}
 	else if (phy == "ax"){
@@ -193,7 +193,7 @@ int main (int argc, char *argv[])
 
 		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ax_5GHZ);
 		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager","DataMode", StringValue (mcs),"ControlMode", StringValue (mcs));
-		wifiPhy.Set ("ShortGuardEnabled", BooleanValue (true));
+
 		channelWidth = 80;
 	}
 	else if (phy == "n")
@@ -210,13 +210,15 @@ int main (int argc, char *argv[])
 		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
 				"DataMode", StringValue (mcs),
 				"ControlMode", StringValue (mcs));
-		wifiPhy.Set ("ShortGuardEnabled", BooleanValue (1));
+
 		channelWidth = 40;
 	}
 	else {
 		std::cout<<"Given PHY doesn't exist or cannot be chosen. Choose one of the following:\n1. n\n2. ac\n3. ax"<<endl;
 		exit(0);
 	}
+
+wifiPhyHelper.Set ("GuardInterval", TimeValue(NanoSeconds (800))); // LONG GI set
 
 	/* Set up Channel */
 
