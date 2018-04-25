@@ -218,7 +218,7 @@ int main (int argc, char *argv[])
 		exit(0);
 	}
 
-wifiPhyHelper.Set ("GuardInterval", TimeValue(NanoSeconds (800))); // LONG GI set
+	wifiPhy.Set ("GuardInterval", TimeValue(NanoSeconds (800))); // LONG GI set
 
 	/* Set up Channel */
 
