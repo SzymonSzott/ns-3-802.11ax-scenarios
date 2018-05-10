@@ -613,6 +613,13 @@ void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int
 	ApplicationContainer sourceApplications, sinkApplications;
 
 	uint8_t tosValue = 0x70; //AC_BE
+	
+	//Add random fuzz to app start time
+	double min = 0.0;
+	double max = 1.0;
+	Ptr<UniformRandomVariable> fuzz = CreateObject<UniformRandomVariable> ();
+	fuzz->SetAttribute ("Min", DoubleValue (min));
+	fuzz->SetAttribute ("Max", DoubleValue (max));		
 
 	InetSocketAddress sinkSocket (addr, port);
 	sinkSocket.SetTos (tosValue);
@@ -624,7 +631,7 @@ void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int
 
 	sinkApplications.Start (Seconds (warmupTime));
 	sinkApplications.Stop (Seconds (simulationTime));
-	sourceApplications.Start (Seconds (warmupTime));
+	sourceApplications.Start (Seconds (warmupTime+fuzz->GetValue ()));
 	sourceApplications.Stop (Seconds (simulationTime));
 
 
