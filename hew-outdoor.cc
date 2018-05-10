@@ -15,7 +15,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * Authors: 
+ * Authors:
  * Szymon Szott <szott@kt.agh.edu.pl>
  * Joanna Czepiec <joanna.czepiec7@gmail.com>
  * Geovani Teca <tecageovani@gmail.com>
@@ -29,13 +29,20 @@
 #include "ns3/propagation-loss-model.h"
 #include "ns3/node-list.h"
 #include "ns3/ipv4-l3-protocol.h"
+#include "ns3/point-to-point-module.h"
+#include "ns3/network-module.h"
+#include "ns3/csma-module.h"
+#include "ns3/flow-monitor-module.h"
+#include "ns3/ipv4-address.h"
 
 #include <iostream>
 #include <vector>
 #include <math.h>
 #include <string>
 #include <fstream>
-
+#include <string>
+#include <ctime>
+#include <iomanip>
 
 // This is an implementation of the TGax (HEW) outdoor scenario.
 using namespace std;
@@ -43,41 +50,59 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
-/*******  Foward declaration of functions *******/
+/*******  Forward declaration of functions *******/
 
 int countAPs(int layers); // Count the number of APs per layer
 double **calculateAPpositions(int h, int layers); // Calculate the positions of AP
 void placeNodes(double **xy,NodeContainer &Nodes); // Place each node in 2D plane (X,Y)
 double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations); //calculate positions of the stations
+void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int port, std::string offeredLoad, int packetSize, int simulationTime, int warmupTime);
 void showPosition(NodeContainer &Nodes); // Show AP's positions (only in debug mode)
 void PopulateARPcache ();
 
-/*******  End of all foward declaration of functions *******/
+/*******  End of all forward declaration of functions *******/
 
 int main (int argc, char *argv[])
 {
+	/* Variable declarations */
 
-	/* Initialize parameters */
-
-	double simulationTime = 10; //seconds
 	bool enableRtsCts = false; // RTS/CTS disabled by default
-	int stations = 50; //Stations per grid
-	int layers = 3; //Layers of hex grid
+	int stations = 5; //Stations per grid
+	int layers = 1; //Layers of hex grid
 	bool debug = false;
 	int h = 65; //distance between AP/2 (radius of hex grid)
-	std::string phy = "ac"; //802.11 PHY to use
+	string phy = "ac"; //802.11 PHY to use
 	int channelWidth = 20;
+	bool pcap = false;
+	//string offeredLoad = "1"; //Mbps
+	bool highMcs = true; //Use of high MCS settings
+	string mcs;
+  std::string offeredLoad = "1"; //Mbps
+	int simulationTime = 10;
+	int warmupTime = 1;
+	int packetSize = 1472;
 	/* Command line parameters */
 
 	CommandLine cmd;
 	cmd.AddValue ("simulationTime", "Simulation time [s]", simulationTime);
 	cmd.AddValue ("layers", "Number of layers in hex grid", layers);
+	cmd.AddValue ("stations", "Number of stations in each grid", stations);
 	cmd.AddValue ("debug", "Enable debug mode", debug);
 	cmd.AddValue ("rts", "Enable RTS/CTS", enableRtsCts);
 	cmd.AddValue ("phy", "Select PHY layer", phy);
+	cmd.AddValue ("highMcs", "Select high or low MCS settings", highMcs);
+	cmd.AddValue ("pcap", "Enable PCAP generation", pcap);
+	cmd.AddValue ("offeredLoad", "Offered Load [Mbps]", offeredLoad);
+	cmd.AddValue ("packetSize", "Packet size [s]", packetSize);
+	cmd.AddValue ("warmupTime", "Warm-up time [s]", warmupTime);
 	cmd.Parse (argc,argv);
-	
-	
+
+	int APs =  countAPs(layers);
+
+	if(debug) {
+		LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
+		LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
+	}
 
 	/* Enable or disable RTS/CTS */
 
@@ -89,15 +114,13 @@ int main (int argc, char *argv[])
 	}
 
 	/* Calculate the number of  APs */
-	
-	int APs =  countAPs(layers);
 
 	if(debug){
 		std::cout << "There are "<< APs << " APs in " << layers << " layers.\n";
 	}
 
 	/* Calculate AP positions */
-	
+
 	double ** APpositions;
 	APpositions = calculateAPpositions(h,layers);
 
@@ -112,7 +135,7 @@ int main (int argc, char *argv[])
 
 	if(debug)
 	{
-		cout <<"Show AP's position : "<<endl;
+		cout << "Show AP's position: "<< endl;
 		showPosition(wifiApNodes);
 	}
 
@@ -145,39 +168,66 @@ int main (int argc, char *argv[])
 	YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default ();
 
 	if (phy == "ac"){
-		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ac);  //PHY standard
-		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue ("VhtMcs9"), "ControlMode", StringValue ("VhtMcs0"), "MaxSlrc", UintegerValue (10));
-		wifiPhy.Set ("ShortGuardEnabled", BooleanValue (true));
+		if(highMcs == 1)
+		{
+			mcs ="VhtMcs9";
+		}
+		else
+		{
+			mcs ="VhtMcs0";
+		}
+		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ac);
+		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue (mcs), "ControlMode", StringValue (mcs), "MaxSlrc", UintegerValue (10));
+
 		channelWidth = 80;
 	}
 	else if (phy == "ax"){
+		if(highMcs == 1)
+		{
+			mcs ="HeMcs11";
+		}
+		else
+		{
+			mcs ="HeMcs0";
+		}
+
 		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211ax_5GHZ);
-		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager","DataMode", StringValue ("HeMcs11"),"ControlMode", StringValue ("HeMcs0"));
-		wifiPhy.Set ("ShortGuardEnabled", BooleanValue (true));
+		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager","DataMode", StringValue (mcs),"ControlMode", StringValue (mcs));
+
 		channelWidth = 80;
 	}
 	else if (phy == "n")
 	{
+		if(highMcs == 1)
+		{
+			mcs ="HtMcs7";
+		}
+		else
+		{
+			mcs ="HtMcs0";
+		}
 		wifiHelper.SetStandard (WIFI_PHY_STANDARD_80211n_5GHZ);
 		wifiHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
-										"DataMode", StringValue ("HtMcs7"),
-										"ControlMode", StringValue ("HtMcs0"));
-		wifiPhy.Set ("ShortGuardEnabled", BooleanValue (1));
+				"DataMode", StringValue (mcs),
+				"ControlMode", StringValue (mcs));
+
 		channelWidth = 40;
 	}
-	else{
+	else {
 		std::cout<<"Given PHY doesn't exist or cannot be chosen. Choose one of the following:\n1. n\n2. ac\n3. ax"<<endl;
 		exit(0);
 	}
+
+	wifiPhy.Set ("GuardInterval", TimeValue(NanoSeconds (800))); // LONG GI set
 
 	/* Set up Channel */
 
 	YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default ();
 	wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
-	wifiChannel.AddPropagationLoss ("ns3::TwoRayGroundPropagationLossModel", "Frequency", DoubleValue (5e9));
+	//wifiChannel.AddPropagationLoss ("ns3::TwoRayGroundPropagationLossModel");
 
 	/* Set channel width */
-	Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue (channelWidth)); 
+	Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue (channelWidth));
 
 
 	/* Configure MAC and PHY */
@@ -190,30 +240,33 @@ int main (int argc, char *argv[])
 	wifiPhy.Set ("TxGain", DoubleValue (0));
 	wifiPhy.Set ("RxGain", DoubleValue (0));
 	wifiPhy.Set ("RxNoiseFigure", DoubleValue (7));
-	wifiPhy.Set ("CcaMode1Threshold", DoubleValue (-79));
-	wifiPhy.Set ("EnergyDetectionThreshold", DoubleValue (-79 + 3));
+	/*	wifiPhy.Set ("CcaMode1Threshold", DoubleValue (-79));
+		wifiPhy.Set ("EnergyDetectionThreshold", DoubleValue (-79 + 3)); */
 	wifiPhy.SetErrorRateModel ("ns3::YansErrorRateModel");
 	wifiPhy.Set ("ShortGuardEnabled", BooleanValue (false));
 
-	Ssid ssid = Ssid ("hew-outdoor-network");
-	wifiMac.SetType ("ns3::ApWifiMac",
-			"Ssid", SsidValue (ssid));
+	NetDeviceContainer apDevices;
+	Ssid ssid;
 
-	NetDeviceContainer apDevices = wifiHelper.Install (wifiPhy, wifiMac, wifiApNodes);
+	for(int i = 0; i < APs; ++i) {
+		ssid = Ssid ("hew-outdoor-network-" + std::to_string(i));
+		wifiMac.SetType ("ns3::ApWifiMac","Ssid", SsidValue (ssid));
+		NetDeviceContainer apDevice = wifiHelper.Install (wifiPhy, wifiMac, wifiApNodes.Get(i));
+		apDevices.Add(apDevice);
+	}
 
 	wifiPhy.Set ("TxPowerStart", DoubleValue (15.0));
 	wifiPhy.Set ("TxPowerEnd", DoubleValue (15.0));
 	wifiPhy.Set ("TxPowerLevels", UintegerValue (1));
 	wifiPhy.Set ("TxGain", DoubleValue (-2)); // for STA -2 dBi
 
-	wifiMac.SetType ("ns3::StaWifiMac",
-			"Ssid", SsidValue (ssid),
-			"ActiveProbing", BooleanValue (false));
-
 	NetDeviceContainer staDevices[APs];
-	for(int i = 0; i < APs; ++i)
-	{
-		staDevices[i] = wifiHelper.Install (wifiPhy, wifiMac, wifiStaNodes[i]);
+
+	for(int i = 0; i < APs; ++i) {
+		ssid = Ssid ("hew-outdoor-network-" + std::to_string(i));
+		wifiMac.SetType ("ns3::StaWifiMac",	"Ssid", SsidValue (ssid),"ActiveProbing", BooleanValue (false));
+		NetDeviceContainer staDevice = wifiHelper.Install (wifiPhy, wifiMac, wifiStaNodes[i]);
+		staDevices[i].Add(staDevice);
 	}
 
 	/* Configure Internet stack */
@@ -225,11 +278,31 @@ int main (int argc, char *argv[])
 		stack.Install (wifiStaNodes[i]);
 	}
 
+	// Ipv4AddressHelper address;
+	// address.SetBase ("10.1.0.0", "255.255.252.0");
+	//
+	// Ipv4InterfaceContainer StaInterfaces;
+	// Ipv4InterfaceContainer ApInterfaces;
+	//
+	// ApInterfaces = address.Assign (apDevices);
+	//
+	// for(int i = 0; i < APs; ++i)
+	// {
+	//
+	// 	StaInterfaces = address.Assign (staDevices[i]);
+	// }
+
+
+
 	Ipv4AddressHelper address;
-	address.SetBase ("10.1.0.0", "255.255.252.0");
-	address.Assign (apDevices);
+
 	for(int i = 0; i < APs; ++i)
 	{
+		std::string addrString;
+		addrString =  "10.1." + to_string(i) + ".0";
+		const char *cstr = addrString.c_str(); //convert to constant char
+		address.SetBase (Ipv4Address(cstr), "255.255.255.0");
+		address.Assign (apDevices.Get(i));
 		address.Assign (staDevices[i]);
 	}
 
@@ -239,17 +312,53 @@ int main (int argc, char *argv[])
 
 	/* Configure applications */
 
+	int port=9;
+	for(int i = 0; i < APs; ++i){
+		for(int j = 0; j < stations; ++j)
+			installTrafficGenerator(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, offeredLoad, packetSize, simulationTime, warmupTime);
+	}
+
+
 	/* Configure tracing */
 
 	//EnablePcap ();
 
+	if(pcap) {
+		wifiPhy.EnablePcap ("hew-outdoor", apDevices);
+		for(int i = 0; i < APs; ++i){
+			wifiPhy.EnablePcap ("hew-outdoor", staDevices[i]);
+		}
+	}
+
+	FlowMonitorHelper flowmon;
+	Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
+
 	/* Run simulation */
 
-	Simulator::Stop (Seconds (simulationTime));
+	Simulator::Stop(Seconds(simulationTime));
 	Simulator::Run ();
 
 	/* Calculate results */
+	double flowThr;
+	double flowDel;
 
+	ofstream myfile;
+	myfile.open ("hew-outdoor.csv", ios::app);
+
+
+	Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmon.GetClassifier ());
+	std::map<FlowId, FlowMonitor::FlowStats> stats = monitor->GetFlowStats ();
+	for (std::map<FlowId, FlowMonitor::FlowStats>::const_iterator i = stats.begin (); i != stats.end (); ++i) {
+		auto time = std::time(nullptr); //Get timestamp
+		auto tm = *std::localtime(&time);
+		Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
+		flowThr=i->second.rxBytes * 8.0 / (i->second.timeLastRxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds ()) / 1024 / 1024;
+		flowDel=i->second.delaySum.GetSeconds () / i->second.rxPackets;
+		NS_LOG_UNCOND ("Flow " << i->first  << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\tThroughput: " <<  flowThr  << " Mbps\tTime: " << i->second.timeLastRxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds () << "\t Delay: " << flowDel << " s \n");
+		myfile << std::put_time(&tm, "%Y-%m-%d %H:%M") << "," << offeredLoad << "," << RngSeedManager::GetRun() << "," << t.sourceAddress << "," << t.destinationAddress << "," << flowThr << "," << flowDel;
+		myfile << std::endl;
+	}
+	myfile.close();
 
 	/* End of simulation */
 	Simulator::Destroy ();
@@ -258,7 +367,7 @@ int main (int argc, char *argv[])
 
 /***** Functions definition *****/
 
-int countAPs(int layers){
+int countAPs(int layers) {
 	int APsum=1; //if 1 layer then 1 AP
 	if(layers>1)
 	{
@@ -271,8 +380,7 @@ int countAPs(int layers){
 	return APsum;
 }
 
-void placeNodes(double **xy,NodeContainer &Nodes)
-{
+void placeNodes(double **xy,NodeContainer &Nodes) {
 	uint32_t nNodes = Nodes.GetN ();
 	double height = 0.0;
 	MobilityHelper mobility;
@@ -293,8 +401,7 @@ void placeNodes(double **xy,NodeContainer &Nodes)
 	mobility.Install (Nodes);
 }
 
-void showPosition(NodeContainer &Nodes)
-{
+void showPosition(NodeContainer &Nodes) {
 
 	uint32_t NodeNumber = 0;
 
@@ -309,7 +416,7 @@ void showPosition(NodeContainer &Nodes)
 	}
 }
 
-double **calculateAPpositions(int h, int layers){
+double **calculateAPpositions(int h, int layers) {
 
 	float sq=sqrt(3);
 	float first_x=0; // coordinates of the first AP
@@ -416,7 +523,6 @@ double **calculateAPpositions(int h, int layers){
 
 double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations) {
 
-	srand(time(NULL));
 	double PI  =3.141592653589793238463;
 
 
@@ -449,8 +555,7 @@ double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations) 
 	return sta_co;
 }
 
-void PopulateARPcache ()
-{
+void PopulateARPcache () {
 	Ptr<ArpCache> arp = CreateObject<ArpCache> ();
 	arp->SetAliveTimeout (Seconds (3600 * 24 * 365) );
 
@@ -500,6 +605,31 @@ void PopulateARPcache ()
 	}
 }
 
+void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int port, std::string offeredLoad, int packetSize, int simulationTime, int warmupTime ) {
 
+	Ptr<Ipv4> ipv4 = toNode->GetObject<Ipv4> (); // Get Ipv4 instance of the node
+	Ipv4Address addr = ipv4->GetAddress (1, 0).GetLocal (); // Get Ipv4InterfaceAddress of xth interface.
+
+	ApplicationContainer sourceApplications, sinkApplications;
+
+	uint8_t tosValue = 0x70; //AC_BE
+
+	InetSocketAddress sinkSocket (addr, port);
+	sinkSocket.SetTos (tosValue);
+	OnOffHelper onOffHelper ("ns3::UdpSocketFactory", sinkSocket);
+	onOffHelper.SetConstantRate (DataRate (offeredLoad + "Mbps"), packetSize);
+	sourceApplications.Add (onOffHelper.Install (fromNode)); //fromNode
+	PacketSinkHelper packetSinkHelper ("ns3::UdpSocketFactory", sinkSocket);
+	sinkApplications.Add (packetSinkHelper.Install (toNode)); //toNode
+
+	sinkApplications.Start (Seconds (warmupTime));
+	sinkApplications.Stop (Seconds (simulationTime));
+	sourceApplications.Start (Seconds (warmupTime));
+	sourceApplications.Stop (Seconds (simulationTime));
+
+
+
+
+}
 
 /***** End of functions definition *****/
