@@ -75,7 +75,7 @@ int main (int argc, char *argv[])
 	int channelWidth = 20;
 	bool pcap = false;
 	//string offeredLoad = "1"; //Mbps
-	bool highMcs = true; //Use of high MCS settings
+	bool highMcs = false; //Use of high MCS settings
 	string mcs;
   std::string offeredLoad = "1"; //Mbps
 	int simulationTime = 10;
@@ -217,8 +217,7 @@ int main (int argc, char *argv[])
 		std::cout<<"Given PHY doesn't exist or cannot be chosen. Choose one of the following:\n1. n\n2. ac\n3. ax"<<endl;
 		exit(0);
 	}
-
-	wifiPhy.Set ("GuardInterval", TimeValue(NanoSeconds (800))); // LONG GI set
+	Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/HeConfiguration/GuardInterval", TimeValue (NanoSeconds (800))); // LONG GI set
 
 	/* Set up Channel */
 
@@ -243,7 +242,7 @@ int main (int argc, char *argv[])
 	/*	wifiPhy.Set ("CcaMode1Threshold", DoubleValue (-79));
 		wifiPhy.Set ("EnergyDetectionThreshold", DoubleValue (-79 + 3)); */
 	wifiPhy.SetErrorRateModel ("ns3::YansErrorRateModel");
-	wifiPhy.Set ("ShortGuardEnabled", BooleanValue (false));
+	Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/HtConfiguration/ShortGuardEnabled", BooleanValue (false));
 
 	NetDeviceContainer apDevices;
 	Ssid ssid;
