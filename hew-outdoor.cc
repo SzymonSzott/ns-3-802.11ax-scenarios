@@ -59,6 +59,7 @@ double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations);
 void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int port, std::string offeredLoad, int packetSize, int simulationTime, int warmupTime);
 void showPosition(NodeContainer &Nodes); // Show AP's positions (only in debug mode)
 void PopulateARPcache ();
+void ftpApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double start, double stop); //FTP traffic generator
 
 /*******  End of all forward declaration of functions *******/
 
@@ -70,7 +71,7 @@ int main (int argc, char *argv[])
 	int stations = 5; //Stations per grid
 	int layers = 1; //Layers of hex grid
 	bool debug = false;
-	int h = 65; //distance between AP/2 (radius of hex grid)
+	int h = 30; //distance between AP/2 (radius of hex grid)
 	string phy = "ac"; //802.11 PHY to use
 	int channelWidth = 20;
 	bool pcap = false;
@@ -314,7 +315,8 @@ int main (int argc, char *argv[])
 	int port=9;
 	for(int i = 0; i < APs; ++i){
 		for(int j = 0; j < stations; ++j)
-			installTrafficGenerator(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, offeredLoad, packetSize, simulationTime, warmupTime);
+			//installTrafficGenerator(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, offeredLoad, packetSize, simulationTime, warmupTime);
+            ftpApplicationSetup(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, warmupTime, simulationTime);
 	}
 
 
@@ -638,4 +640,23 @@ void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int
 
 }
 
+void ftpApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double start, double stop)
+{
+  Ptr<Ipv4> ipv4Server = server->GetObject<Ipv4> ();
+
+  Ipv4InterfaceAddress iaddrServer = ipv4Server->GetAddress (1,0);
+  Ipv4Address ipv4AddrServer = iaddrServer.GetLocal ();
+  //int port = 5000;
+  // Equipping the source  node with OnOff Application used for sending
+  OnOffHelper onoff ("ns3::UdpSocketFactory", Address (InetSocketAddress (Ipv4Address ("10.1.1.1"), port))); //only for UL traffic
+  //onoff.SetConstantRate (DataRate (60000000));
+  onoff.SetAttribute ("PacketSize", UintegerValue (1000));
+  onoff.SetAttribute ("Remote", AddressValue (InetSocketAddress (ipv4AddrServer, port)));
+  onoff.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=0.01]")); // here the DataRate can be adjusted
+  onoff.SetAttribute ("OffTime", StringValue ("ns3::ExponentialRandomVariable[Mean=0.001|Bound=1]"));
+
+  ApplicationContainer apps = onoff.Install (client);
+  apps.Start (Seconds (start));
+  apps.Stop (Seconds (stop));
+}
 /***** End of functions definition *****/
