@@ -82,6 +82,7 @@ int main (int argc, char *argv[])
 	int simulationTime = 10;
 	int warmupTime = 1;
 	int packetSize = 1472;
+    int nFtp = 0;
 	/* Command line parameters */
 
 	CommandLine cmd;
@@ -96,9 +97,14 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("offeredLoad", "Offered Load [Mbps]", offeredLoad);
 	cmd.AddValue ("packetSize", "Packet size [s]", packetSize);
 	cmd.AddValue ("warmupTime", "Warm-up time [s]", warmupTime);
+    cmd.AddValue ("nFtp", "Number of stations transmitting ftp traffic", nFtp);
 	cmd.Parse (argc,argv);
 
 	int APs =  countAPs(layers);
+
+    if (stations < nFtp){
+        throw std::invalid_argument("Number of stations transmitting FTP traffic cannot be higher than number of all stations");
+    }
 
 	if(debug) {
 		LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
@@ -314,9 +320,11 @@ int main (int argc, char *argv[])
 
 	int port=9;
 	for(int i = 0; i < APs; ++i){
-		for(int j = 0; j < stations; ++j)
+		for(int j = 0; j < nFtp; ++j)
 			//installTrafficGenerator(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, offeredLoad, packetSize, simulationTime, warmupTime);
             ftpApplicationSetup(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, warmupTime, simulationTime);
+        for(int j = nFtp; j < stations; ++j)
+            installTrafficGenerator(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, offeredLoad, packetSize, simulationTime, warmupTime);
 	}
 
 
