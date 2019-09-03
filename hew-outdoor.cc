@@ -333,6 +333,7 @@ int main (int argc, char *argv[])
 	//EnablePcap ();
 
 	if(pcap) {
+        wifiPhy.SetPcapDataLinkType (WifiPhyHelper::DLT_IEEE802_11_RADIO);
 		wifiPhy.EnablePcap ("hew-outdoor", apDevices);
 		for(int i = 0; i < APs; ++i){
 			wifiPhy.EnablePcap ("hew-outdoor", staDevices[i]);
@@ -652,19 +653,29 @@ void ftpApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double s
 {
   Ptr<Ipv4> ipv4Server = server->GetObject<Ipv4> ();
 
+  uint8_t tosValue = 0x28; //AC_BK
+
   Ipv4InterfaceAddress iaddrServer = ipv4Server->GetAddress (1,0);
   Ipv4Address ipv4AddrServer = iaddrServer.GetLocal ();
   //int port = 5000;
+  
+  ApplicationContainer sinkApplications, sourceApplications;
+  InetSocketAddress sinkSocket (ipv4AddrServer, port);
+  sinkSocket.SetTos (tosValue);
   // Equipping the source  node with OnOff Application used for sending
-  OnOffHelper onoff ("ns3::UdpSocketFactory", Address (InetSocketAddress (Ipv4Address ("10.1.1.1"), port))); //only for UL traffic
-  //onoff.SetConstantRate (DataRate (60000000));
-  onoff.SetAttribute ("PacketSize", UintegerValue (1000));
-  onoff.SetAttribute ("Remote", AddressValue (InetSocketAddress (ipv4AddrServer, port)));
-  onoff.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=0.01]")); // here the DataRate can be adjusted
-  onoff.SetAttribute ("OffTime", StringValue ("ns3::ExponentialRandomVariable[Mean=0.001|Bound=1]"));
-
-  ApplicationContainer apps = onoff.Install (client);
-  apps.Start (Seconds (start));
-  apps.Stop (Seconds (stop));
+  OnOffHelper onoff ("ns3::UdpSocketFactory", sinkSocket ); //only for UL traffic
+  onoff.SetAttribute ("PacketSize", UintegerValue (500));
+  //onoff.SetAttribute ("Remote", AddressValue (InetSocketAddress (ipv4AddrServer, port)));
+  onoff.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]")); 
+  onoff.SetAttribute ("OffTime", StringValue ("ns3::ExponentialRandomVariable[Mean=0.5|Bound=10]")); // here the DataRate can be adjusted
+  sourceApplications.Add (onoff.Install(client));
+  PacketSinkHelper packetSinkHelper ("ns3::UdpSocketFactory", sinkSocket);
+  sinkApplications.Add (packetSinkHelper.Install (server)); //toNode
+  
+  
+  sinkApplications.Start(Seconds(start));
+  sinkApplications.Stop(Seconds(stop));
+  sourceApplications.Start (Seconds (start));
+  sourceApplications.Stop (Seconds (stop));
 }
 /***** End of functions definition *****/
