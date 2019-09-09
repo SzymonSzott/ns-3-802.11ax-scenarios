@@ -60,6 +60,7 @@ void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int
 void showPosition(NodeContainer &Nodes); // Show AP's positions (only in debug mode)
 void PopulateARPcache ();
 void ftpApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double start, double stop); //FTP traffic generator
+void voipApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double start, double stop); //VoIP traffic generator
 
 /*******  End of all forward declaration of functions *******/
 
@@ -83,6 +84,7 @@ int main (int argc, char *argv[])
 	int warmupTime = 1;
 	int packetSize = 1472;
     int nFtp = 0;
+	int nVoip = 0; 
 	/* Command line parameters */
 
 	CommandLine cmd;
@@ -98,6 +100,7 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("packetSize", "Packet size [s]", packetSize);
 	cmd.AddValue ("warmupTime", "Warm-up time [s]", warmupTime);
     cmd.AddValue ("nFtp", "Number of stations transmitting ftp traffic", nFtp);
+    cmd.AddValue ("nVoip", "Number of stations transmitting VoIP traffic", nVoip);
 	cmd.Parse (argc,argv);
 
 	int APs =  countAPs(layers);
@@ -319,13 +322,14 @@ int main (int argc, char *argv[])
 	/* Configure applications */
 
 	int port=9;
-	for(int i = 0; i < APs; ++i){
-		for(int j = 0; j < nFtp; ++j)
-			//installTrafficGenerator(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, offeredLoad, packetSize, simulationTime, warmupTime);
-            ftpApplicationSetup(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, warmupTime, simulationTime);
-        for(int j = nFtp; j < stations; ++j)
-            installTrafficGenerator(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, offeredLoad, packetSize, simulationTime, warmupTime);
-	}
+  for(int i = 0; i < APs; ++i){
+    for(int j = 0; j < nFtp; ++j)
+      ftpApplicationSetup(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, warmupTime, simulationTime);
+    for(int j = nFtp; j < nFtp+nVoip; ++j)
+      voipApplicationSetup(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, warmupTime, simulationTime);
+    for(int j = nFtp+nVoip; j < stations; ++j)
+      installTrafficGenerator(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, offeredLoad, packetSize, simulationTime, warmupTime);
+  }
 
 
 	/* Configure tracing */
@@ -668,6 +672,34 @@ void ftpApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double s
   //onoff.SetAttribute ("Remote", AddressValue (InetSocketAddress (ipv4AddrServer, port)));
   onoff.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]")); 
   onoff.SetAttribute ("OffTime", StringValue ("ns3::ExponentialRandomVariable[Mean=0.5|Bound=10]")); // here the DataRate can be adjusted
+  sourceApplications.Add (onoff.Install(client));
+  PacketSinkHelper packetSinkHelper ("ns3::UdpSocketFactory", sinkSocket);
+  sinkApplications.Add (packetSinkHelper.Install (server)); //toNode
+  
+  
+  sinkApplications.Start(Seconds(start));
+  sinkApplications.Stop(Seconds(stop));
+  sourceApplications.Start (Seconds (start));
+  sourceApplications.Stop (Seconds (stop));
+}
+
+void voipApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double start, double stop)
+{
+  Ptr<Ipv4> ipv4Server = server->GetObject<Ipv4> ();
+
+  uint8_t tosValue = 0xc0;
+
+  Ipv4InterfaceAddress iaddrServer = ipv4Server->GetAddress (1,0);
+  Ipv4Address ipv4AddrServer = iaddrServer.GetLocal ();
+
+  ApplicationContainer sinkApplications, sourceApplications;
+  InetSocketAddress sinkSocket (ipv4AddrServer, port);
+  sinkSocket.SetTos (tosValue);
+
+  OnOffHelper onoff ("ns3::UdpSocketFactory", sinkSocket );
+  onoff.SetAttribute ("PacketSize", UintegerValue (60));
+  onoff.SetAttribute ("Remote", AddressValue (InetSocketAddress (ipv4AddrServer, port)));
+
   sourceApplications.Add (onoff.Install(client));
   PacketSinkHelper packetSinkHelper ("ns3::UdpSocketFactory", sinkSocket);
   sinkApplications.Add (packetSinkHelper.Install (server)); //toNode
