@@ -688,6 +688,8 @@ void voipApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double 
   Ptr<Ipv4> ipv4Server = server->GetObject<Ipv4> ();
 
   uint8_t tosValue = 0xc0;
+  int packetSize = 60;
+  std::string offeredLoad = "0.024"; //Mbps
 
   Ipv4InterfaceAddress iaddrServer = ipv4Server->GetAddress (1,0);
   Ipv4Address ipv4AddrServer = iaddrServer.GetLocal ();
@@ -697,8 +699,7 @@ void voipApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double 
   sinkSocket.SetTos (tosValue);
 
   OnOffHelper onoff ("ns3::UdpSocketFactory", sinkSocket );
-  onoff.SetAttribute ("PacketSize", UintegerValue (60));
-  onoff.SetAttribute ("Remote", AddressValue (InetSocketAddress (ipv4AddrServer, port)));
+  onoff.SetConstantRate (DataRate (offeredLoad + "Mbps"), packetSize);
 
   sourceApplications.Add (onoff.Install(client));
   PacketSinkHelper packetSinkHelper ("ns3::UdpSocketFactory", sinkSocket);
