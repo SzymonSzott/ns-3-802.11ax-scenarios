@@ -34,6 +34,7 @@
 #include "ns3/csma-module.h"
 #include "ns3/flow-monitor-module.h"
 #include "ns3/ipv4-address.h"
+#include "ns3/ipv4-header.h"
 
 #include <iostream>
 #include <vector>
@@ -47,6 +48,8 @@
 // This is an implementation of the TGax (HEW) outdoor scenario.
 using namespace std;
 using namespace ns3;
+std::map<uint32_t, int> MacRxCount;
+std::map<uint32_t, int> PhyTxBeginCount;
 
 NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
@@ -61,6 +64,8 @@ void showPosition(NodeContainer &Nodes); // Show AP's positions (only in debug m
 void PopulateARPcache ();
 void ftpApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double start, double stop); //FTP traffic generator
 void voipApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double start, double stop); //VoIP traffic generator
+void MacRxHandle(Ptr<const Packet> packet);
+void PhyTxBeginHandle(Ptr<const Packet> packet, double sth);
 
 /*******  End of all forward declaration of functions *******/
 
@@ -84,7 +89,8 @@ int main (int argc, char *argv[])
 	int warmupTime = 1;
 	int packetSize = 1472;
     int nFtp = 0;
-	int nVoip = 0; 
+	int nVoip = 0;
+    
 	/* Command line parameters */
 
 	CommandLine cmd;
@@ -105,7 +111,7 @@ int main (int argc, char *argv[])
 
 	int APs =  countAPs(layers);
 
-    if (stations < nFtp){
+    if (stations < nFtp + nVoip){
         throw std::invalid_argument("Number of stations transmitting FTP traffic cannot be higher than number of all stations");
     }
 
@@ -346,7 +352,12 @@ int main (int argc, char *argv[])
 
 	FlowMonitorHelper flowmon;
 	Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
-
+    
+    /* Configure callback to count packets sent/received */
+    
+    Config::ConnectWithoutContext("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Mac/MacRx", MakeCallback(&MacRxHandle));
+    Config::ConnectWithoutContext("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/PhyTxBegin", MakeCallback(&PhyTxBeginHandle));
+    
 	/* Run simulation */
 
 	Simulator::Stop(Seconds(simulationTime));
@@ -355,6 +366,7 @@ int main (int argc, char *argv[])
 	/* Calculate results */
 	double flowThr;
 	double flowDel;
+    int packetLoss;
 
 	ofstream myfile;
 	myfile.open ("hew-outdoor.csv", ios::app);
@@ -368,8 +380,9 @@ int main (int argc, char *argv[])
 		Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
 		flowThr=i->second.rxBytes * 8.0 / (i->second.timeLastRxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds ()) / 1024 / 1024;
 		flowDel=i->second.delaySum.GetSeconds () / i->second.rxPackets;
-		NS_LOG_UNCOND ("Flow " << i->first  << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\tThroughput: " <<  flowThr  << " Mbps\tTime: " << i->second.timeLastRxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds () << "\t Delay: " << flowDel << " s \n");
-		myfile << std::put_time(&tm, "%Y-%m-%d %H:%M") << "," << offeredLoad << "," << RngSeedManager::GetRun() << "," << t.sourceAddress << "," << t.destinationAddress << "," << flowThr << "," << flowDel;
+        packetLoss = PhyTxBeginCount[t.sourceAddress.Get()] - MacRxCount[t.sourceAddress.Get()];
+		NS_LOG_UNCOND ("Flow " << i->first  << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\tThroughput: " <<  flowThr  << " Mbps\tTime: " << i->second.timeLastRxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds () << "\t Delay: " << flowDel << " s \t Packet loss: " << packetLoss  << "\n");
+		myfile << std::put_time(&tm, "%Y-%m-%d %H:%M") << "," << offeredLoad << "," << RngSeedManager::GetRun() << "," << t.sourceAddress << "," << t.destinationAddress << "," << flowThr << "," << flowDel << "," << packetLoss;
 		myfile << std::endl;
 	}
 	myfile.close();
@@ -666,10 +679,10 @@ void ftpApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double s
   ApplicationContainer sinkApplications, sourceApplications;
   InetSocketAddress sinkSocket (ipv4AddrServer, port);
   sinkSocket.SetTos (tosValue);
-  // Equipping the source  node with OnOff Application used for sending
+  
   OnOffHelper onoff ("ns3::UdpSocketFactory", sinkSocket ); //only for UL traffic
   onoff.SetAttribute ("PacketSize", UintegerValue (500));
-  //onoff.SetAttribute ("Remote", AddressValue (InetSocketAddress (ipv4AddrServer, port)));
+  
   onoff.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]")); 
   onoff.SetAttribute ("OffTime", StringValue ("ns3::ExponentialRandomVariable[Mean=0.5|Bound=10]")); // here the DataRate can be adjusted
   sourceApplications.Add (onoff.Install(client));
@@ -709,5 +722,49 @@ void voipApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double 
   sinkApplications.Stop(Seconds(stop));
   sourceApplications.Start (Seconds (start));
   sourceApplications.Stop (Seconds (stop));
+}
+
+void MacRxHandle(Ptr<const Packet> packet)
+{
+  int warmupTime = 1;
+  if (Simulator::Now().GetSeconds()>warmupTime) {
+      Ptr<Packet> p = packet->Copy();
+	  Ipv4Header ip;
+	  LlcSnapHeader llc;
+	  p->RemoveHeader (llc);
+	  p->PeekHeader (ip);
+      Ipv4Address srcIP = ip.GetSource();
+      uint32_t srcIPint = srcIP.Get();
+      if ( MacRxCount.count(srcIPint) != 1) {
+          MacRxCount[srcIPint] = 1;
+      }
+      else{
+          MacRxCount[srcIPint]++;
+      }
+  } 
+}
+
+void PhyTxBeginHandle(Ptr<const Packet> packet, double sth){
+     int warmupTime = 1;
+  if (Simulator::Now().GetSeconds()>warmupTime) {
+      Ptr<Packet> p = packet->Copy();
+	  Ipv4Header ip;
+	  LlcSnapHeader llc;
+      WifiMacHeader mac;
+      p->RemoveHeader (mac);
+      if (mac.IsData()){
+          p->RemoveHeader (llc);
+	      p->PeekHeader (ip);
+          Ipv4Address srcIP = ip.GetSource();
+          uint32_t srcIPint = srcIP.Get();
+          if ( PhyTxBeginCount.count(srcIPint) != 1) {
+              PhyTxBeginCount[srcIPint] = 1;
+          }
+          else{
+              PhyTxBeginCount[srcIPint]++;
+              //cout << PhyTxBeginCount[srcIPint] << ", ";
+          }
+      }
+  } 
 }
 /***** End of functions definition *****/
