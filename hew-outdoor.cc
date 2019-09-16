@@ -50,6 +50,7 @@ using namespace std;
 using namespace ns3;
 std::map<uint32_t, int> MacRxCount;
 std::map<uint32_t, int> PhyTxBeginCount;
+int warmupTime = 1;
 
 NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
@@ -86,7 +87,6 @@ int main (int argc, char *argv[])
 	string mcs;
   std::string offeredLoad = "1"; //Mbps
 	int simulationTime = 10;
-	int warmupTime = 1;
 	int packetSize = 1472;
     int nFtp = 0;
 	int nVoip = 0;
@@ -366,7 +366,7 @@ int main (int argc, char *argv[])
 	/* Calculate results */
 	double flowThr;
 	double flowDel;
-    int packetLoss;
+    double packetLoss;
 
 	ofstream myfile;
 	myfile.open ("hew-outdoor.csv", ios::app);
@@ -380,8 +380,8 @@ int main (int argc, char *argv[])
 		Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
 		flowThr=i->second.rxBytes * 8.0 / (i->second.timeLastRxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds ()) / 1024 / 1024;
 		flowDel=i->second.delaySum.GetSeconds () / i->second.rxPackets;
-        packetLoss = PhyTxBeginCount[t.sourceAddress.Get()] - MacRxCount[t.sourceAddress.Get()];
-		NS_LOG_UNCOND ("Flow " << i->first  << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\tThroughput: " <<  flowThr  << " Mbps\tTime: " << i->second.timeLastRxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds () << "\t Delay: " << flowDel << " s \t Packet loss: " << packetLoss  << "\n");
+        packetLoss = (double)(PhyTxBeginCount[t.sourceAddress.Get()] - MacRxCount[t.sourceAddress.Get()]) / (double)PhyTxBeginCount[t.sourceAddress.Get()];
+		NS_LOG_UNCOND ("Flow " << i->first  << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\tThroughput: " <<  flowThr  << " Mbps\tTime: " << i->second.timeLastRxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds () << "\t Delay: " << flowDel << " s \t Packet loss: " << packetLoss  << ", Tx: " << PhyTxBeginCount[t.sourceAddress.Get()] <<", Rx: " << MacRxCount[t.sourceAddress.Get()] <<  "\n" );
 		myfile << std::put_time(&tm, "%Y-%m-%d %H:%M") << "," << offeredLoad << "," << RngSeedManager::GetRun() << "," << t.sourceAddress << "," << t.destinationAddress << "," << flowThr << "," << flowDel << "," << packetLoss;
 		myfile << std::endl;
 	}
@@ -725,9 +725,7 @@ void voipApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double 
   sourceApplications.Stop (Seconds (stop));
 }
 
-void MacRxHandle(Ptr<const Packet> packet)
-{
-  int warmupTime = 1;
+void MacRxHandle(Ptr<const Packet> packet){
   if (Simulator::Now().GetSeconds()>warmupTime) {
       Ptr<Packet> p = packet->Copy();
 	  Ipv4Header ip;
@@ -746,7 +744,6 @@ void MacRxHandle(Ptr<const Packet> packet)
 }
 
 void PhyTxBeginHandle(Ptr<const Packet> packet, double sth){
-     int warmupTime = 1;
   if (Simulator::Now().GetSeconds()>warmupTime) {
       Ptr<Packet> p = packet->Copy();
 	  Ipv4Header ip;
@@ -763,7 +760,6 @@ void PhyTxBeginHandle(Ptr<const Packet> packet, double sth){
           }
           else{
               PhyTxBeginCount[srcIPint]++;
-              //cout << PhyTxBeginCount[srcIPint] << ", ";
           }
       }
   } 
