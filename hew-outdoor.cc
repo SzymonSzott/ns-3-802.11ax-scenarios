@@ -367,7 +367,8 @@ int main (int argc, char *argv[])
 	double flowThr;
 	double flowDel;
     double packetLoss;
-
+    int MacTx;
+    int MacRx;
 	ofstream myfile;
 	myfile.open ("hew-outdoor.csv", ios::app);
 
@@ -380,9 +381,11 @@ int main (int argc, char *argv[])
 		Ipv4FlowClassifier::FiveTuple t = classifier->FindFlow (i->first);
 		flowThr=i->second.rxBytes * 8.0 / (i->second.timeLastRxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds ()) / 1024 / 1024;
 		flowDel=i->second.delaySum.GetSeconds () / i->second.rxPackets;
-        packetLoss = (double)(PhyTxBeginCount[t.sourceAddress.Get()] - MacRxCount[t.sourceAddress.Get()]) / (double)PhyTxBeginCount[t.sourceAddress.Get()];
+        MacTx = PhyTxBeginCount[t.sourceAddress.Get()];
+        MacRx = MacRxCount[t.sourceAddress.Get()];
+        packetLoss = (double) (MacTx - MacRx) / (double) MacTx;
 		NS_LOG_UNCOND ("Flow " << i->first  << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\tThroughput: " <<  flowThr  << " Mbps\tTime: " << i->second.timeLastRxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds () << "\t Delay: " << flowDel << " s \t Packet loss: " << packetLoss  << ", Tx: " << PhyTxBeginCount[t.sourceAddress.Get()] <<", Rx: " << MacRxCount[t.sourceAddress.Get()] <<  "\n" );
-		myfile << std::put_time(&tm, "%Y-%m-%d %H:%M") << "," << offeredLoad << "," << RngSeedManager::GetRun() << "," << t.sourceAddress << "," << t.destinationAddress << "," << flowThr << "," << flowDel << "," << packetLoss;
+		myfile << std::put_time(&tm, "%Y-%m-%d %H:%M") << "," << offeredLoad << "," << RngSeedManager::GetRun() << "," << t.sourceAddress << "," << t.destinationAddress << "," << flowThr << "," << flowDel << "," << MacTx << "," << MacRx << "," << i->second.txPackets << "," << i->second.rxPackets;
 		myfile << std::endl;
 	}
 	myfile.close();
