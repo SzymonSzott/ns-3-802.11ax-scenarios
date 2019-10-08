@@ -369,6 +369,7 @@ int main (int argc, char *argv[])
     double packetLoss;
     int MacTx;
     int MacRx;
+    int classType;
 	ofstream myfile;
 	myfile.open ("hew-outdoor.csv", ios::app);
 
@@ -384,8 +385,26 @@ int main (int argc, char *argv[])
         MacTx = PhyTxBeginCount[t.sourceAddress.Get()];
         MacRx = MacRxCount[t.sourceAddress.Get()];
         packetLoss = (double) (MacTx - MacRx) / (double) MacTx;
+        string a="10.1.0." + to_string(nFtp+2);
+        string b="10.1.0." + to_string(nVoip+nFtp+2);
+        string c="10.1.0." + to_string(stations+2);
+        Ipv4Address adresA(a.c_str());
+        Ipv4Address adresB(b.c_str());
+        Ipv4Address adresC(c.c_str());
+        if(t.sourceAddress < adresC)
+        {
+        	classType=1;	//CBR
+        }
+        if(t.sourceAddress < adresB)
+        {
+        	classType=2;	//VoIP
+        }
+        if(t.sourceAddress < adresA)
+        {
+        	classType=3;	//FTP
+        }
 		NS_LOG_UNCOND ("Flow " << i->first  << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\tThroughput: " <<  flowThr  << " Mbps\tTime: " << i->second.timeLastRxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds () << "\t Delay: " << flowDel << " s \t Packet loss: " << packetLoss  << ", Tx: " << PhyTxBeginCount[t.sourceAddress.Get()] <<", Rx: " << MacRxCount[t.sourceAddress.Get()] <<  "\n" );
-		myfile << std::put_time(&tm, "%Y-%m-%d %H:%M") << "," << offeredLoad << "," << RngSeedManager::GetRun() << "," << t.sourceAddress << "," << t.destinationAddress << "," << flowThr << "," << flowDel << "," << MacTx << "," << MacRx << "," << i->second.txPackets << "," << i->second.rxPackets;
+		myfile << std::put_time(&tm, "%Y-%m-%d %H:%M") << "," << offeredLoad << "," << RngSeedManager::GetRun() << "," << t.sourceAddress << "," << t.destinationAddress << "," << flowThr << "," << flowDel << "," << MacTx << "," << MacRx << "," << i->second.txPackets << "," << i->second.rxPackets << "," << classType;
 		myfile << std::endl;
 	}
 	myfile.close();
