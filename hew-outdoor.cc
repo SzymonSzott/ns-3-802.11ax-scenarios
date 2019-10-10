@@ -78,7 +78,7 @@ int main (int argc, char *argv[])
 	int stations = 5; //Stations per grid
 	int layers = 1; //Layers of hex grid
 	bool debug = false;
-	int h = 30; //distance between AP/2 (radius of hex grid)
+	int h = 40; //distance between AP/2 (radius of hex grid)
 	string phy = "ac"; //802.11 PHY to use
 	int channelWidth = 20;
 	bool pcap = false;
@@ -582,15 +582,23 @@ double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations) 
 	sta_co[1]=new double[n_stations];
 	double ANG = 2*PI;
 
-	float X=1;
+	double min = 0.0;
+	double max = 1.0;
+	Ptr<UniformRandomVariable> random_sta_position = CreateObject<UniformRandomVariable> ();
+	random_sta_position->SetAttribute ("Min", DoubleValue (min));
+	random_sta_position->SetAttribute ("Max", DoubleValue (max));
+    
+    Ptr<UniformRandomVariable> random_sta_angle = CreateObject<UniformRandomVariable> ();
+    random_sta_angle->SetAttribute ("Min", DoubleValue (min));
+	random_sta_angle->SetAttribute ("Max", DoubleValue (ANG));
+    
 	for(int i=0; i<n_stations; i++){
-		float sta_x = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX/X));
+		float sta_x = static_cast <float> (random_sta_position->GetValue());
 		tab[0][i]= sta_x*h;
-
 	}
 
 	for (int j=0; j<n_stations; j++){
-		float angle = static_cast <float> (rand()) / (static_cast <float> (RAND_MAX/ANG));
+		float angle = static_cast <float> (random_sta_angle->GetValue());
 		tab[1][j]=angle;
 
 	}
