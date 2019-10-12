@@ -51,6 +51,7 @@ using namespace ns3;
 std::map<uint32_t, int> MacRxCount;
 std::map<uint32_t, int> PhyTxBeginCount;
 int warmupTime = 1;
+double APheight = 10.0;
 
 NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
@@ -78,7 +79,7 @@ int main (int argc, char *argv[])
 	int stations = 5; //Stations per grid
 	int layers = 1; //Layers of hex grid
 	bool debug = false;
-	int h = 40; //distance between AP/2 (radius of hex grid)
+	int h = 30; //distance between AP/2 (radius of hex grid)
 	string phy = "ac"; //802.11 PHY to use
 	int channelWidth = 20;
 	bool pcap = false;
@@ -107,6 +108,7 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("warmupTime", "Warm-up time [s]", warmupTime);
     cmd.AddValue ("nFtp", "Number of stations transmitting ftp traffic", nFtp);
     cmd.AddValue ("nVoip", "Number of stations transmitting VoIP traffic", nVoip);
+    cmd.AddValue ("APheight", "Height of the Access Points (Double variable)", APheight);
 	cmd.Parse (argc,argv);
 
 	int APs =  countAPs(layers);
@@ -436,7 +438,7 @@ void placeNodes(double **xy,NodeContainer &Nodes) {
 	Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
 
 	if(xy[0][0] == 0 && xy[1][0] == 0)
-		height = 10.0;
+		height = APheight;
 	else
 		height = 1.5;
 
@@ -595,6 +597,7 @@ double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations) 
 	for(int i=0; i<n_stations; i++){
 		float sta_x = static_cast <float> (random_sta_position->GetValue());
 		tab[0][i]= sta_x*h;
+        //tab[0][i]= h;
 	}
 
 	for (int j=0; j<n_stations; j++){
