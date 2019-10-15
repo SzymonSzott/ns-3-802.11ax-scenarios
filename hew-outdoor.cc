@@ -387,9 +387,9 @@ int main (int argc, char *argv[])
         MacTx = PhyTxBeginCount[t.sourceAddress.Get()];
         MacRx = MacRxCount[t.sourceAddress.Get()];
         packetLoss = (double) (MacTx - MacRx) / (double) MacTx;
-        string a="10.1.0." + to_string(nFtp+2);
-        string b="10.1.0." + to_string(nVoip+nFtp+2);
-        string c="10.1.0." + to_string(stations+2);
+        string a="10.1.0." + to_string(nFtp+layers+1);
+        string b="10.1.0." + to_string(nVoip+nFtp+layers+1);
+        string c="10.1.0." + to_string(stations+layers+1);
         Ipv4Address adresA(a.c_str());
         Ipv4Address adresB(b.c_str());
         Ipv4Address adresC(c.c_str());
