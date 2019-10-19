@@ -91,6 +91,7 @@ int main (int argc, char *argv[])
 	int packetSize = 1472;
     int nFtp = 0;
 	int nVoip = 0;
+    int CW = 1;
     
 	/* Command line parameters */
 
@@ -109,6 +110,7 @@ int main (int argc, char *argv[])
     cmd.AddValue ("nFtp", "Number of stations transmitting ftp traffic", nFtp);
     cmd.AddValue ("nVoip", "Number of stations transmitting VoIP traffic", nVoip);
     cmd.AddValue ("APheight", "Height of the Access Points (Double variable)", APheight);
+    cmd.AddValue ("CW", "Contention window value", CW);
 	cmd.Parse (argc,argv);
 
 	int APs =  countAPs(layers);
@@ -309,6 +311,10 @@ int main (int argc, char *argv[])
 	// 	StaInterfaces = address.Assign (staDevices[i]);
 	// }
 
+    /* Change CW */
+    Config::Set("/$ns3::NodeListPriv/NodeList/*/$ns3::Node/DeviceList/*/$ns3::WifiNetDevice/Mac/$ns3::RegularWifiMac/BE_Txop/$ns3::QosTxop/MinCw",UintegerValue(CW));
+
+    Config::Set("/$ns3::NodeListPriv/NodeList/*/$ns3::Node/DeviceList/*/$ns3::WifiNetDevice/Mac/$ns3::RegularWifiMac/BE_Txop/$ns3::QosTxop/MaxCw",UintegerValue(CW));
 
 
 	Ipv4AddressHelper address;
@@ -406,7 +412,7 @@ int main (int argc, char *argv[])
         	classType=3;	//FTP
         }
 		NS_LOG_UNCOND ("Flow " << i->first  << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\tThroughput: " <<  flowThr  << " Mbps\tTime: " << i->second.timeLastRxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds () << "\t Delay: " << flowDel << " s \t Packet loss: " << packetLoss  << ", Tx: " << PhyTxBeginCount[t.sourceAddress.Get()] <<", Rx: " << MacRxCount[t.sourceAddress.Get()] <<  "\n" );
-		myfile << std::put_time(&tm, "%Y-%m-%d %H:%M") << "," << offeredLoad << "," << RngSeedManager::GetRun() << "," << t.sourceAddress << "," << t.destinationAddress << "," << flowThr << "," << flowDel << "," << MacTx << "," << MacRx << "," << i->second.txPackets << "," << i->second.rxPackets << "," << classType;
+		myfile << std::put_time(&tm, "%Y-%m-%d %H:%M") << "," << offeredLoad << "," << RngSeedManager::GetRun() << "," << t.sourceAddress << "," << t.destinationAddress << "," << flowThr << "," << flowDel << "," << MacTx << "," << MacRx << "," << i->second.txPackets << "," << i->second.rxPackets << "," << classType << "," << CW;
 		myfile << std::endl;
 	}
 	myfile.close();
