@@ -371,7 +371,7 @@ int main (int argc, char *argv[])
     double packetLoss;
     int MacTx;
     int MacRx;
-    int classType;
+    string classType;
 	ofstream myfile;
 	myfile.open ("hew-outdoor.csv", ios::app);
 
@@ -387,23 +387,20 @@ int main (int argc, char *argv[])
         MacTx = PhyTxBeginCount[t.sourceAddress.Get()];
         MacRx = MacRxCount[t.sourceAddress.Get()];
         packetLoss = (double) (MacTx - MacRx) / (double) MacTx;
-        string a="10.1.0." + to_string(nFtp+layers+1);
-        string b="10.1.0." + to_string(nVoip+nFtp+layers+1);
-        string c="10.1.0." + to_string(stations+layers+1);
-        Ipv4Address adresA(a.c_str());
-        Ipv4Address adresB(b.c_str());
-        Ipv4Address adresC(c.c_str());
-        if(t.sourceAddress < adresC)
+        uint8_t buf[4];
+        t.sourceAddress.Serialize(buf);
+        int last = buf[3];
+        if(last < stations+2)
         {
-        	classType=1;	//CBR
+        	classType="CBR";	
         }
-        if(t.sourceAddress < adresB)
+        if(last < nVoip+nFtp+2)
         {
-        	classType=2;	//VoIP
+        	classType="VoIP";	
         }
-        if(t.sourceAddress < adresA)
+        if(last < nFtp+2)
         {
-        	classType=3;	//FTP
+        	classType="FTP";	
         }
 		NS_LOG_UNCOND ("Flow " << i->first  << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\tThroughput: " <<  flowThr  << " Mbps\tTime: " << i->second.timeLastRxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds () << "\t Delay: " << flowDel << " s \t Packet loss: " << packetLoss  << ", Tx: " << PhyTxBeginCount[t.sourceAddress.Get()] <<", Rx: " << MacRxCount[t.sourceAddress.Get()] <<  "\n" );
 		myfile << std::put_time(&tm, "%Y-%m-%d %H:%M") << "," << offeredLoad << "," << RngSeedManager::GetRun() << "," << t.sourceAddress << "," << t.destinationAddress << "," << flowThr << "," << flowDel << "," << MacTx << "," << MacRx << "," << i->second.txPackets << "," << i->second.rxPackets << "," << classType;
