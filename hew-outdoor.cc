@@ -35,6 +35,7 @@
 #include "ns3/flow-monitor-module.h"
 #include "ns3/ipv4-address.h"
 #include "ns3/ipv4-header.h"
+#include "ns3/qos-txop.h"
 
 #include <iostream>
 #include <vector>
@@ -52,7 +53,8 @@ std::map<uint32_t, int> MacRxCount;
 std::map<uint32_t, int> PhyTxBeginCount;
 int warmupTime = 1;
 double APheight = 10.0;
-
+double** sta_co=new double*[2];
+double** AP_co=new double*[2];
 NS_LOG_COMPONENT_DEFINE ("hew-outdoor");
 
 /*******  Forward declaration of functions *******/
@@ -61,10 +63,11 @@ int countAPs(int layers); // Count the number of APs per layer
 double **calculateAPpositions(int h, int layers); // Calculate the positions of AP
 void placeNodes(double **xy,NodeContainer &Nodes); // Place each node in 2D plane (X,Y)
 double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations); //calculate positions of the stations
+double **calculateSTApositionsStatic(double x_ap, double y_ap, int h, int n_stations, int distanceSta); //calculate static positions of the stations
 void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int port, std::string offeredLoad, int packetSize, int simulationTime, int warmupTime);
+void installTrafficGeneratorVO(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int port, std::string offeredLoad, int packetSize, int simulationTime, int warmupTime);
 void showPosition(NodeContainer &Nodes); // Show AP's positions (only in debug mode)
 void PopulateARPcache ();
-void ftpApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double start, double stop); //FTP traffic generator
 void voipApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double start, double stop); //VoIP traffic generator
 void MacRxHandle(Ptr<const Packet> packet);
 void PhyTxBeginHandle(Ptr<const Packet> packet, double sth);
@@ -79,18 +82,25 @@ int main (int argc, char *argv[])
 	int stations = 5; //Stations per grid
 	int layers = 1; //Layers of hex grid
 	bool debug = false;
-	int h = 30; //distance between AP/2 (radius of hex grid)
+	int h = 30; //distanceSta between AP/2 (radius of hex grid)
 	string phy = "ac"; //802.11 PHY to use
 	int channelWidth = 20;
 	bool pcap = false;
 	//string offeredLoad = "1"; //Mbps
 	bool highMcs = false; //Use of high MCS settings
 	string mcs;
-  std::string offeredLoad = "1"; //Mbps
+  	std::string offeredLoad = "1"; //Mbps
 	int simulationTime = 10;
 	int packetSize = 1472;
-    int nFtp = 0;
 	int nVoip = 0;
+	int nAttCBR = 0;
+	int nAttReal = 0;
+	int aggregation = 0;
+	int distanceSta = 1;
+	int distanceAtt = 1;
+	bool staticStations = false;
+	std::string filename = "test.csv";
+
     
 	/* Command line parameters */
 
@@ -106,16 +116,18 @@ int main (int argc, char *argv[])
 	cmd.AddValue ("offeredLoad", "Offered Load [Mbps]", offeredLoad);
 	cmd.AddValue ("packetSize", "Packet size [s]", packetSize);
 	cmd.AddValue ("warmupTime", "Warm-up time [s]", warmupTime);
-    cmd.AddValue ("nFtp", "Number of stations transmitting ftp traffic", nFtp);
     cmd.AddValue ("nVoip", "Number of stations transmitting VoIP traffic", nVoip);
+	cmd.AddValue ("nAttCBR", "Number of attacking stations with CBR VO model", nAttCBR);
+	cmd.AddValue ("nAttReal", "Number of attacking stations with real traffic model VO", nAttReal);
+	cmd.AddValue ("aggregation", "Aggregation: 0 = OFF, 1 = ON, 2 = DEFAULT", aggregation);
     cmd.AddValue ("APheight", "Height of the Access Points (Double variable)", APheight);
+	cmd.AddValue ("distanceSta", "Set a distance stations from AP, when statisStations is true", distanceSta);
+	cmd.AddValue ("distanceAtt", "Set a distance attacking stations from AP, when statisStations is true", distanceAtt);
+	cmd.AddValue ("staticStations", "Place stations with static distanceSta", staticStations);
+	cmd.AddValue ("filename", "Name of file with results", filename);
 	cmd.Parse (argc,argv);
 
 	int APs =  countAPs(layers);
-
-    if (stations < nFtp + nVoip){
-        throw std::invalid_argument("Number of stations transmitting FTP traffic cannot be higher than number of all stations");
-    }
 
 	if(debug) {
 		LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
@@ -164,8 +176,12 @@ int main (int argc, char *argv[])
 	{
 		wifiStaNodes[APindex].Create(stations);
 		double **STApositions;
-		STApositions = calculateSTApositions(APpositions[0][APindex], APpositions[1][APindex], h, stations);
-
+		if (staticStations){
+			STApositions = calculateSTApositionsStatic(APpositions[0][APindex], APpositions[1][APindex], h, stations, distanceSta);
+		}
+		else{
+			STApositions = calculateSTApositions(APpositions[0][APindex], APpositions[1][APindex], h, stations);
+		}
 		/* Place each stations in 3D (X,Y,Z) plane */
 
 		placeNodes(STApositions,wifiStaNodes[APindex]);
@@ -279,11 +295,35 @@ int main (int argc, char *argv[])
 
 	NetDeviceContainer staDevices[APs];
 
-	for(int i = 0; i < APs; ++i) {
-		ssid = Ssid ("hew-outdoor-network-" + std::to_string(i));
-		wifiMac.SetType ("ns3::StaWifiMac",	"Ssid", SsidValue (ssid),"ActiveProbing", BooleanValue (false));
-		NetDeviceContainer staDevice = wifiHelper.Install (wifiPhy, wifiMac, wifiStaNodes[i]);
-		staDevices[i].Add(staDevice);
+	if (aggregation == 0){
+		for(int i = 0; i < APs; ++i) {
+			ssid = Ssid ("hew-outdoor-network-" + std::to_string(i));
+			wifiMac.SetType ("ns3::StaWifiMac",	"Ssid", SsidValue (ssid),"ActiveProbing", BooleanValue (false), "VO_MaxAmpduSize", UintegerValue (0),
+               "VI_MaxAmpduSize", UintegerValue (0),
+			   "BE_MaxAmpduSize", UintegerValue (0),
+               "BK_MaxAmpduSize", UintegerValue (0));
+			NetDeviceContainer staDevice = wifiHelper.Install (wifiPhy, wifiMac, wifiStaNodes[i]);
+			staDevices[i].Add(staDevice);
+		}
+	}
+	else if (aggregation == 1){
+		for(int i = 0; i < APs; ++i) {
+			ssid = Ssid ("hew-outdoor-network-" + std::to_string(i));
+			wifiMac.SetType ("ns3::StaWifiMac",	"Ssid", SsidValue (ssid),"ActiveProbing", BooleanValue (false), "VO_MaxAmpduSize", UintegerValue (65535),
+               "VI_MaxAmpduSize", UintegerValue (65535),
+			   "BE_MaxAmpduSize", UintegerValue (65535),
+               "BK_MaxAmpduSize", UintegerValue (65535));
+			NetDeviceContainer staDevice = wifiHelper.Install (wifiPhy, wifiMac, wifiStaNodes[i]);
+			staDevices[i].Add(staDevice);
+		}
+	}
+	else if (aggregation == 2){
+		for(int i = 0; i < APs; ++i) {
+			ssid = Ssid ("hew-outdoor-network-" + std::to_string(i));
+			wifiMac.SetType ("ns3::StaWifiMac",	"Ssid", SsidValue (ssid),"ActiveProbing", BooleanValue (false));
+			NetDeviceContainer staDevice = wifiHelper.Install (wifiPhy, wifiMac, wifiStaNodes[i]);
+			staDevices[i].Add(staDevice);
+		}
 	}
 
 	/* Configure Internet stack */
@@ -294,22 +334,6 @@ int main (int argc, char *argv[])
 	{
 		stack.Install (wifiStaNodes[i]);
 	}
-
-	// Ipv4AddressHelper address;
-	// address.SetBase ("10.1.0.0", "255.255.252.0");
-	//
-	// Ipv4InterfaceContainer StaInterfaces;
-	// Ipv4InterfaceContainer ApInterfaces;
-	//
-	// ApInterfaces = address.Assign (apDevices);
-	//
-	// for(int i = 0; i < APs; ++i)
-	// {
-	//
-	// 	StaInterfaces = address.Assign (staDevices[i]);
-	// }
-
-
 
 	Ipv4AddressHelper address;
 
@@ -328,17 +352,67 @@ int main (int argc, char *argv[])
 	PopulateARPcache ();
 
 	/* Configure applications */
-
 	int port=9;
-  for(int i = 0; i < APs; ++i){
-    for(int j = 0; j < nFtp; ++j)
-      ftpApplicationSetup(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, warmupTime, simulationTime);
-    for(int j = nFtp; j < nFtp+nVoip; ++j)
-      voipApplicationSetup(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, warmupTime, simulationTime);
-    for(int j = nFtp+nVoip; j < stations; ++j)
-      installTrafficGenerator(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, offeredLoad, packetSize, simulationTime, warmupTime);
-  }
-
+	if (staticStations){
+		for(int i = 0; i < APs; ++i){
+			for(int j = 0; j < nAttReal; ++j){
+				Ptr<Node> node = wifiStaNodes[i].Get(j);
+				Ptr<MobilityModel> mobility = node->GetObject<MobilityModel> ();
+				Vector pos = mobility->GetPosition();
+				pos.x = distanceAtt * pos.x;
+				pos.y = distanceAtt * pos.y;
+				sta_co[0][j] = pos.x;
+				sta_co[1][j] = pos.y;
+				mobility->SetPosition(pos);
+				voipApplicationSetup(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, warmupTime, simulationTime);
+			}
+			for(int j = nAttReal; j < nAttReal+nAttCBR; ++j){
+				Ptr<Node> node = wifiStaNodes[i].Get(j);
+				Ptr<MobilityModel> mobility = node->GetObject<MobilityModel> ();
+				Vector pos = mobility->GetPosition();
+				pos.x = distanceAtt * pos.x;
+				pos.y = distanceAtt * pos.y;
+				sta_co[0][j] = pos.x;
+				sta_co[1][j] = pos.y;
+				mobility->SetPosition(pos);
+				installTrafficGeneratorVO(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, offeredLoad, packetSize, simulationTime, warmupTime);
+			}
+			for(int j = nAttReal+nAttCBR; j < nAttReal+nAttCBR+nVoip; ++j){
+				Ptr<Node> node = wifiStaNodes[i].Get(j);
+				Ptr<MobilityModel> mobility = node->GetObject<MobilityModel> ();
+				Vector pos = mobility->GetPosition();
+				pos.x = distanceSta * pos.x;
+				pos.y = distanceSta * pos.y;
+				sta_co[0][j] = pos.x;
+				sta_co[1][j] = pos.y;
+				mobility->SetPosition(pos);
+				installTrafficGeneratorVO(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, offeredLoad, packetSize, simulationTime, warmupTime);
+			}
+			for(int j = nAttReal+nAttCBR+nVoip; j < stations; ++j){
+				Ptr<Node> node = wifiStaNodes[i].Get(j);
+				Ptr<MobilityModel> mobility = node->GetObject<MobilityModel> ();
+				Vector pos = mobility->GetPosition();
+				pos.x = distanceSta * pos.x;
+				pos.y = distanceSta * pos.y;
+				sta_co[0][j] = pos.x;
+				sta_co[1][j] = pos.y;
+				mobility->SetPosition(pos);
+				installTrafficGenerator(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, offeredLoad, packetSize, simulationTime, warmupTime);
+			}
+		}
+	}
+	else{
+		for(int i = 0; i < APs; ++i){
+			for(int j = 0; j < nAttReal; ++j)
+				voipApplicationSetup(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, warmupTime, simulationTime);
+			for(int j = nAttReal; j < nAttReal+nAttCBR; ++j)
+				installTrafficGeneratorVO(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, offeredLoad, packetSize, simulationTime, warmupTime);
+			for(int j = nAttReal+nAttCBR; j < nAttReal+nAttCBR+nVoip; ++j)
+				installTrafficGeneratorVO(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, offeredLoad, packetSize, simulationTime, warmupTime);
+			for(int j = nAttReal+nAttCBR+nVoip; j < stations; ++j)
+				installTrafficGenerator(wifiStaNodes[i].Get(j),wifiApNodes.Get(i), port++, offeredLoad, packetSize, simulationTime, warmupTime);
+		}
+	}
 
 	/* Configure tracing */
 
@@ -371,9 +445,10 @@ int main (int argc, char *argv[])
     double packetLoss;
     int MacTx;
     int MacRx;
-    string classType;
+    string stationType;
 	ofstream myfile;
-	myfile.open ("hew-outdoor.csv", ios::app);
+	string whichLayer;
+	myfile.open (filename, ios::app);
 
 
 	Ptr<Ipv4FlowClassifier> classifier = DynamicCast<Ipv4FlowClassifier> (flowmon.GetClassifier ());
@@ -389,21 +464,35 @@ int main (int argc, char *argv[])
         packetLoss = (double) (MacTx - MacRx) / (double) MacTx;
         uint8_t buf[4];
         t.sourceAddress.Serialize(buf);
-        int last = buf[3];
-        if(last < stations+2)
+		int third = buf[2];
+        int fourth = buf[3];
+        if(fourth < stations+2)
         {
-        	classType="CBR";	
+        	stationType="CBR";	
         }
-        if(last < nVoip+nFtp+2)
+        if(fourth < nAttReal+nAttCBR+nVoip+2)
         {
-        	classType="VoIP";	
+        	stationType="VoIP";	
         }
-        if(last < nFtp+2)
+		if(fourth < nAttReal+nAttCBR+2)
         {
-        	classType="FTP";	
+        	stationType="AttCBR";	
         }
+		if(fourth < nAttReal+2)
+        {
+        	stationType="AttReal";	
+        }
+		if (third < 1){
+			whichLayer="Layer1";
+		}
+		if ((third > 0) && (third < 7)){
+			whichLayer="Layer2";
+		}
+		if (third > 6){
+			whichLayer="Layer3";
+		}
 		NS_LOG_UNCOND ("Flow " << i->first  << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\tThroughput: " <<  flowThr  << " Mbps\tTime: " << i->second.timeLastRxPacket.GetSeconds () - i->second.timeFirstTxPacket.GetSeconds () << "\t Delay: " << flowDel << " s \t Packet loss: " << packetLoss  << ", Tx: " << PhyTxBeginCount[t.sourceAddress.Get()] <<", Rx: " << MacRxCount[t.sourceAddress.Get()] <<  "\n" );
-		myfile << std::put_time(&tm, "%Y-%m-%d %H:%M") << "," << offeredLoad << "," << RngSeedManager::GetRun() << "," << t.sourceAddress << "," << t.destinationAddress << "," << flowThr << "," << flowDel << "," << MacTx << "," << MacRx << "," << i->second.txPackets << "," << i->second.rxPackets << "," << classType;
+		myfile << std::put_time(&tm, "%Y-%m-%d %H:%M") << "," << offeredLoad << "," << RngSeedManager::GetRun() << "," << t.sourceAddress << "," << t.destinationAddress << "," << flowThr << "," << flowDel << "," << MacTx << "," << MacRx << "," << i->second.txPackets << "," << i->second.rxPackets << "," << stations-nVoip-nAttCBR-nAttReal << "," << nVoip << "," << nAttCBR << "," << nAttReal << "," << distanceSta << "," << distanceAtt << "," << sta_co[0][fourth-2] << "," << sta_co[1][fourth-2] << "," << sqrt(pow((abs(sta_co[0][fourth-2])-abs(AP_co[0][third])),2) + pow((abs(sta_co[1][fourth-2])-abs(AP_co[1][third])),2)) << "," << AP_co[0][third] << "," << AP_co[1][third] << "," << stationType << "," << whichLayer;
 		myfile << std::endl;
 	}
 	myfile.close();
@@ -556,8 +645,8 @@ double **calculateAPpositions(int h, int layers) {
 
 
 
-	double** AP_co=0;
-	AP_co = new double*[2];
+	// double** AP_co=0;
+	// AP_co = new double*[2];
 	AP_co[0]=new double[APnum];
 	AP_co[1]=new double[APnum];
 
@@ -575,8 +664,8 @@ double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations) 
 
 
 	double tab[2][n_stations];
-	double** sta_co=0;
-	sta_co = new double*[2];
+	// double** sta_co=0;
+	// sta_co = new double*[2];
 	sta_co[0]=new double[n_stations];
 	sta_co[1]=new double[n_stations];
 	double ANG = 2*PI;
@@ -606,6 +695,45 @@ double **calculateSTApositions(double x_ap, double y_ap, int h, int n_stations) 
 		sta_co[0][k]=x_ap+cos(tab[1][k])*tab[0][k];
 		sta_co[1][k]=y_ap+sin(tab[1][k])*tab[0][k];
 
+	}
+
+
+	return sta_co;
+}
+
+double **calculateSTApositionsStatic(double x_ap, double y_ap, int h, int n_stations, int distanceSta) {
+
+	double PI  =3.141592653589793238463;
+
+
+	double tab[2][n_stations];
+	// double** sta_co=0;
+	// sta_co = new double*[2];
+	sta_co[0]=new double[n_stations];
+	sta_co[1]=new double[n_stations];
+	double ANG = 2*PI;
+
+	double min = 0.0;
+	double max = 1.0;
+	Ptr<UniformRandomVariable> random_sta_position = CreateObject<UniformRandomVariable> ();
+	random_sta_position->SetAttribute ("Min", DoubleValue (min));
+	random_sta_position->SetAttribute ("Max", DoubleValue (max));
+    
+    Ptr<UniformRandomVariable> random_sta_angle = CreateObject<UniformRandomVariable> ();
+    random_sta_angle->SetAttribute ("Min", DoubleValue (min));
+	random_sta_angle->SetAttribute ("Max", DoubleValue (ANG));
+    
+	for(int i=0; i<n_stations; i++){
+        tab[0][i]= 1;
+	}
+
+	for (int j=0; j<n_stations; j++){
+		float angle = j*360/n_stations;
+		tab[1][j]=angle;
+	}
+	for ( int k=0; k<n_stations; k++){
+		sta_co[0][k]=x_ap+1*(cos(tab[1][k])*tab[0][k]);
+		sta_co[1][k]=y_ap+1*(sin(tab[1][k])*tab[0][k]);
 	}
 
 
@@ -690,40 +818,36 @@ void installTrafficGenerator(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int
 	sinkApplications.Stop (Seconds (simulationTime));
 	sourceApplications.Start (Seconds (warmupTime+fuzz->GetValue ()));
 	sourceApplications.Stop (Seconds (simulationTime));
-
-
-
-
 }
 
-void ftpApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double start, double stop)
-{
-  Ptr<Ipv4> ipv4Server = server->GetObject<Ipv4> ();
+void installTrafficGeneratorVO(Ptr<ns3::Node> fromNode, Ptr<ns3::Node> toNode, int port, std::string offeredLoad, int packetSize, int simulationTime, int warmupTime ) {
 
-  uint8_t tosValue = 0x28; //AC_BK
+	Ptr<Ipv4> ipv4 = toNode->GetObject<Ipv4> (); // Get Ipv4 instance of the node
+	Ipv4Address addr = ipv4->GetAddress (1, 0).GetLocal (); // Get Ipv4InterfaceAddress of xth interface.
 
-  Ipv4InterfaceAddress iaddrServer = ipv4Server->GetAddress (1,0);
-  Ipv4Address ipv4AddrServer = iaddrServer.GetLocal ();
-  //int port = 5000;
-  
-  ApplicationContainer sinkApplications, sourceApplications;
-  InetSocketAddress sinkSocket (ipv4AddrServer, port);
-  sinkSocket.SetTos (tosValue);
-  
-  OnOffHelper onoff ("ns3::UdpSocketFactory", sinkSocket ); //only for UL traffic
-  onoff.SetAttribute ("PacketSize", UintegerValue (500));
-  
-  onoff.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]")); 
-  onoff.SetAttribute ("OffTime", StringValue ("ns3::ExponentialRandomVariable[Mean=0.5|Bound=10]")); // here the DataRate can be adjusted
-  sourceApplications.Add (onoff.Install(client));
-  PacketSinkHelper packetSinkHelper ("ns3::UdpSocketFactory", sinkSocket);
-  sinkApplications.Add (packetSinkHelper.Install (server)); //toNode
-  
-  
-  sinkApplications.Start(Seconds(start));
-  sinkApplications.Stop(Seconds(stop));
-  sourceApplications.Start (Seconds (start));
-  sourceApplications.Stop (Seconds (stop));
+	ApplicationContainer sourceApplications, sinkApplications;
+
+	uint8_t tosValue = 0xc0; //AC_VO
+	
+	//Add random fuzz to app start time
+	double min = 0.0;
+	double max = 1.0;
+	Ptr<UniformRandomVariable> fuzz = CreateObject<UniformRandomVariable> ();
+	fuzz->SetAttribute ("Min", DoubleValue (min));
+	fuzz->SetAttribute ("Max", DoubleValue (max));		
+
+	InetSocketAddress sinkSocket (addr, port);
+	sinkSocket.SetTos (tosValue);
+	OnOffHelper onOffHelper ("ns3::UdpSocketFactory", sinkSocket);
+	onOffHelper.SetConstantRate (DataRate (offeredLoad + "Mbps"), packetSize);
+	sourceApplications.Add (onOffHelper.Install (fromNode)); //fromNode
+	PacketSinkHelper packetSinkHelper ("ns3::UdpSocketFactory", sinkSocket);
+	sinkApplications.Add (packetSinkHelper.Install (toNode)); //toNode
+
+	sinkApplications.Start (Seconds (warmupTime));
+	sinkApplications.Stop (Seconds (simulationTime));
+	sourceApplications.Start (Seconds (warmupTime+fuzz->GetValue ()));
+	sourceApplications.Stop (Seconds (simulationTime));
 }
 
 void voipApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double start, double stop)
@@ -731,8 +855,8 @@ void voipApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double 
   Ptr<Ipv4> ipv4Server = server->GetObject<Ipv4> ();
 
   uint8_t tosValue = 0xc0;
-  int packetSize = 60;
-  std::string offeredLoad = "0.024"; //Mbps
+  int packetSize = 33;
+  std::string offeredLoad = "0.012"; //Mbps
 
   Ipv4InterfaceAddress iaddrServer = ipv4Server->GetAddress (1,0);
   Ipv4Address ipv4AddrServer = iaddrServer.GetLocal ();
@@ -747,7 +871,6 @@ void voipApplicationSetup (Ptr<Node> client, Ptr<Node> server, int port, double 
   sourceApplications.Add (onoff.Install(client));
   PacketSinkHelper packetSinkHelper ("ns3::UdpSocketFactory", sinkSocket);
   sinkApplications.Add (packetSinkHelper.Install (server)); //toNode
-  
   
   sinkApplications.Start(Seconds(start));
   sinkApplications.Stop(Seconds(stop));
